@@ -4,10 +4,12 @@ firmware/build/
 firmware/sdkconfig
 firmware/sdkconfig.old
 firmware/target/
+home-assistant/.coverage
 console/.next/
 node_modules/
 .next/
 console/coverage/
+home-assistant/.venv/
 
 firmware/.embuild/
 home-assistant/**/__pycache__/
