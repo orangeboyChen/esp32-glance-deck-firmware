@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use embedded_svc::{
     http::{client::Client as HttpClient, Method},
-    io::{Read, Write},
+    io::Write,
 };
 use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
 use serde::Deserialize;
@@ -70,14 +70,12 @@ fn post_json(url: &str, value: &serde_json::Value) -> Result<Vec<u8>> {
         ..Default::default()
     })?;
     let mut client = HttpClient::wrap(connection);
-    let mut request = client.request(
-        Method::Post,
-        url,
-        &[
-            ("content-type", "application/json"),
-            ("content-length", &body.len().to_string()),
-        ],
-    )?;
+    let content_length = body.len().to_string();
+    let headers = [
+        ("content-type", "application/json"),
+        ("content-length", content_length.as_str()),
+    ];
+    let mut request = client.request(Method::Post, url, &headers)?;
     request.write_all(&body)?;
     let mut response = request.submit()?;
     if response.status() != 200 && response.status() != 201 {

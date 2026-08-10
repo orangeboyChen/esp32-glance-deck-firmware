@@ -203,7 +203,7 @@ fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer
         }
         let mut payload = vec![0; length];
         request.read_exact(&mut payload)?;
-        let config: Portal_config = match serde_json::from_slice(&payload) {
+        let config: Portal_config = match serde_json::from_slice::<Portal_config>(&payload) {
             Ok(config)
                 if !config.ssid.is_empty()
                     && config.ssid.len() <= 32
