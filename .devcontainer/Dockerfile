@@ -1,5 +1,7 @@
 FROM espressif/idf:v5.3.1
 
+ARG ESPUP_TOOLCHAIN_VERSION=1.84.0.0
+
 USER root
 
 RUN apt-get update \
@@ -22,7 +24,7 @@ RUN mkdir -p /home/esp/.cargo/bin \
       esac \
     && curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/esp-rs/espup/releases/latest/download/espup-${espup_target}" -o /home/esp/.cargo/bin/espup \
     && chmod +x /home/esp/.cargo/bin/espup \
-    && espup install --targets esp32s3 \
+    && espup install --targets esp32s3 --toolchain-version ${ESPUP_TOOLCHAIN_VERSION} \
     && . /home/esp/export-esp.sh \
     && cargo install cargo-espflash --locked \
     && curl -fsSL https://bun.sh/install | bash
