@@ -17,6 +17,7 @@ and reports its own state.
 - [`home-assistant/`](home-assistant/): Home Assistant integration guidance.
 - [`docs/architecture.md`](docs/architecture.md): responsibilities and layers.
 - [`docs/mqtt-protocol.md`](docs/mqtt-protocol.md): MQTT contract.
+- [`docs/traefik-mqtt.md`](docs/traefik-mqtt.md): production MQTT-over-TLS/WSS edge setup.
 
 ## Development status
 

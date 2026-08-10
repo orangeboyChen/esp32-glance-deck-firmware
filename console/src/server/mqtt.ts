@@ -46,11 +46,26 @@ export async function publish_device_ota(device_id: string, job: { id: string; n
   })
 }
 
-export async function publish_device_release(device_id: string, release: { id: string; version: number; page_id: string; image_format: string; image_width: number; image_height: number; image_sha256: string; image_bytes: number }) {
+export type ReleasePageMetadata = {
+  page_id: string
+  image_format: string
+  image_width: number
+  image_height: number
+  image_sha256: string
+  image_bytes: number
+}
+
+export async function publish_device_release(device_id: string, release: { id: string; version: number; active_page_id: string; pages: ReleasePageMetadata[] }) {
   const client = get_client()
   const base_url = process.env.DEVICE_ASSET_URL ?? process.env.APP_URL
   if (!base_url?.startsWith('https://')) throw new Error('device_asset_url_https_required')
-  const message = JSON.stringify({ release_id: release.id, document_version: 1, image_format: release.image_format, image_width: release.image_width, image_height: release.image_height, image_url: signed_release_image_url(base_url, release.id), image_sha256: release.image_sha256, image_bytes: release.image_bytes, active_page_id: release.page_id })
+  if (release.pages.length === 0 || !release.pages.some((page) => page.page_id === release.active_page_id)) throw new Error('release_pages_invalid')
+  const message = JSON.stringify({
+    release_id: release.id,
+    document_version: 1,
+    active_page_id: release.active_page_id,
+    pages: release.pages.map((page) => ({ ...page, image_url: signed_release_image_url(base_url, release.id) })),
+  })
   await new Promise<void>((resolve, reject) => client.publish(`${TOPIC_PREFIX}/${device_id}/release`, message, { qos: 1, retain: true }, (error) => error ? reject(error) : resolve()))
 }
 

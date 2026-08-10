@@ -63,12 +63,8 @@ export async function publish_source_changes(source_id: string, values: SourceVa
     await Promise.all(binding.device_ids.map((device_id) => publish_device_release(device_id, {
       id: created.id,
       version: created.version,
-      page_id: created.page_id,
-      image_format: created.image_format,
-      image_width: created.image_width,
-      image_height: created.image_height,
-      image_sha256: created.content_sha256,
-      image_bytes: rendered.device_image.length,
+      active_page_id: created.page_id,
+      pages: [{ page_id: created.page_id, image_format: created.image_format, image_width: created.image_width, image_height: created.image_height, image_sha256: created.content_sha256, image_bytes: rendered.device_image.length }],
     })))
     published += binding.device_ids.length
   }

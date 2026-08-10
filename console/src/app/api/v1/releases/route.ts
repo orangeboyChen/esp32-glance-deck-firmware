@@ -38,7 +38,12 @@ export async function POST(request: Request) {
     await transaction.update(devices).set({ release_id: created.id, active_page_id: body.data.page_id }).where(sql`${devices.id} = ANY(${body.data.device_ids})`)
     return { created, targets }
   })
-  const metadata = { id: release.created.id, version: release.created.version, page_id: release.created.page_id, image_format: MONO1_IMAGE_FORMAT, image_width: 400, image_height: 300, image_sha256: content_sha256, image_bytes: rendered.device_image.length }
+  const metadata = {
+    id: release.created.id,
+    version: release.created.version,
+    active_page_id: release.created.page_id,
+    pages: [{ page_id: release.created.page_id, image_format: MONO1_IMAGE_FORMAT, image_width: 400, image_height: 300, image_sha256: content_sha256, image_bytes: rendered.device_image.length }],
+  }
   const published = await Promise.allSettled(release.targets.map(({ id }) => publish_device_release(id, metadata)))
   const failed_devices = release.targets.filter((_device, index) => published[index].status === 'rejected').map(({ id }) => id)
   return NextResponse.json({ release: metadata, failed_devices }, { status: failed_devices.length ? 202 : 201 })

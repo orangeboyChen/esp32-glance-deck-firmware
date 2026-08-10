@@ -23,13 +23,16 @@ versions, image formats, dimensions, hashes, or byte counts.
 {
   "release_id": "b39d5ac2-8ff6-4b7c-95fd-31d243e58e11",
   "document_version": 1,
-  "image_format": "mono1-msb",
-  "image_width": 400,
-  "image_height": 300,
-  "image_url": "https://console.example/api/v1/releases/.../image?signature=...",
-  "image_sha256": "...",
-  "image_bytes": 15000,
-  "active_page_id": "usage"
+  "active_page_id": "usage",
+  "pages": [{
+    "page_id": "usage",
+    "image_format": "mono1-msb",
+    "image_width": 400,
+    "image_height": 300,
+    "image_url": "https://console.example/api/v1/releases/.../image?signature=...",
+    "image_sha256": "...",
+    "image_bytes": 15000
+  }]
 }
 ```
 
