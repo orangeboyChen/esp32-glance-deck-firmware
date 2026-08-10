@@ -8,11 +8,6 @@ import { device_commands, devices, ota_jobs } from './schema'
 let mqtt_client: MqttClient | undefined
 let state_consumer_started = false
 
-export function set_mqtt_client_for_test(client: MqttClient | undefined) {
-  mqtt_client = client
-  state_consumer_started = false
-}
-
 export function validate_mqtt_url(url: string, allow_plaintext_internal = false) {
   const parsed = new URL(url)
   if (parsed.protocol === 'mqtts:' || parsed.protocol === 'wss:') return parsed
@@ -51,8 +46,7 @@ function get_client() {
   return mqtt_client
 }
 
-export async function publish_device_command(device_id: string, command: { id: string; action: string; payload: unknown }) {
-  const client = get_client()
+export async function publish_device_command(device_id: string, command: { id: string; action: string; payload: unknown }, client = get_client()) {
   const topic = `glance_deck/${device_id}/command`
   const message = command_message(command)
 
@@ -61,8 +55,7 @@ export async function publish_device_command(device_id: string, command: { id: s
   })
 }
 
-export async function publish_device_ota(device_id: string, job: { id: string; nonce: string; version: string; manifest_url: string; image_sha256: string }) {
-  const client = get_client()
+export async function publish_device_ota(device_id: string, job: { id: string; nonce: string; version: string; manifest_url: string; image_sha256: string }, client = get_client()) {
   const topic = `${TOPIC_PREFIX}/${device_id}/ota`
   const message = ota_message(job)
   await new Promise<void>((resolve, reject) => {
@@ -79,8 +72,7 @@ export type ReleasePageMetadata = {
   image_bytes: number
 }
 
-export async function publish_device_release(device_id: string, release: { id: string; version: number; active_page_id: string; pages: ReleasePageMetadata[] }) {
-  const client = get_client()
+export async function publish_device_release(device_id: string, release: { id: string; version: number; active_page_id: string; pages: ReleasePageMetadata[] }, client = get_client()) {
   const base_url = process.env.DEVICE_ASSET_URL ?? process.env.APP_URL
   if (!base_url) throw new Error('device_asset_url_https_required')
   const message = release_message(release, base_url)

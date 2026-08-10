@@ -11,23 +11,21 @@ describe('MQTT device publishing', () => {
     publish.mockClear()
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     delete process.env.MQTT_URL
     delete process.env.DEVICE_ASSET_URL
     delete process.env.DEVICE_ASSET_SIGNING_KEY
-    const mqtt = await import('./mqtt')
-    mqtt.set_mqtt_client_for_test(undefined)
   })
 
   test('publishes commands, OTA jobs, and retained bitmap releases', async () => {
     const mqtt = await import('./mqtt')
-    mqtt.set_mqtt_client_for_test({ publish } as unknown as MqttClient)
-    await mqtt.publish_device_command('desk-1', { id: 'command-1', action: 'next_page', payload: {} })
-    await mqtt.publish_device_ota('desk-1', { id: 'job-1', nonce: 'nonce', version: '1.0.0', manifest_url: 'https://releases.example/manifest.json', image_sha256: 'a'.repeat(64) })
+    const client = { publish } as unknown as MqttClient
+    await mqtt.publish_device_command('desk-1', { id: 'command-1', action: 'next_page', payload: {} }, client)
+    await mqtt.publish_device_ota('desk-1', { id: 'job-1', nonce: 'nonce', version: '1.0.0', manifest_url: 'https://releases.example/manifest.json', image_sha256: 'a'.repeat(64) }, client)
     await mqtt.publish_device_release('desk-1', {
       id: 'release-1', version: 1, active_page_id: 'usage',
       pages: [{ page_id: 'usage', image_format: 'mono1-msb', image_width: 400, image_height: 300, image_sha256: 'b'.repeat(64), image_bytes: 15000 }],
-    })
+    }, client)
 
     expect(publish).toHaveBeenCalledTimes(3)
     expect(publish.mock.calls[0]?.[0]).toBe('glance_deck/desk-1/command')
