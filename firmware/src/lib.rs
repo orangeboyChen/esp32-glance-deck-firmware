@@ -17,6 +17,7 @@ pub mod flash_cache;
 pub mod local_screen;
 pub mod mqtt;
 pub mod ota;
+pub mod ota_manifest;
 pub mod page_controller;
 pub mod pages;
 pub mod power;
