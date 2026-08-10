@@ -34,6 +34,14 @@ export async function publish_device_ota(device_id: string, job: { id: string; n
   })
 }
 
+export async function publish_device_release(device_id: string, release: { id: string; version: number; page_id: string; image_sha256: string; image_bytes: number }) {
+  const client = get_client()
+  const base_url = process.env.DEVICE_ASSET_URL ?? process.env.APP_URL
+  if (!base_url?.startsWith('https://')) throw new Error('device_asset_url_https_required')
+  const message = JSON.stringify({ release_id: release.id, document_version: 1, image_url: `${base_url}/api/v1/releases/${release.id}/image`, image_sha256: release.image_sha256, image_bytes: release.image_bytes, active_page_id: release.page_id })
+  await new Promise<void>((resolve, reject) => client.publish(`${TOPIC_PREFIX}/${device_id}/release`, message, { qos: 1, retain: true }, (error) => error ? reject(error) : resolve()))
+}
+
 type DeviceStateMessage = {
   version: number
   page_id: string
