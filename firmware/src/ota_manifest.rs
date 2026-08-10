@@ -1,3 +1,4 @@
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use sha2::{Digest, Sha256};
 
 use crate::display::hex_lower;
@@ -40,6 +41,18 @@ impl Ota_manifest {
         (hex_lower(&Sha256::digest(image)) == self.image_sha256.to_ascii_lowercase())
             .then_some(())
             .ok_or("ota_image_hash_invalid")
+    }
+
+    pub fn verify_signature(&self, public_key: &[u8; 32]) -> Result<(), &'static str> {
+        let key = VerifyingKey::from_bytes(public_key).map_err(|_| "ota_public_key_invalid")?;
+        let signature = hex::decode(&self.signature).map_err(|_| "ota_signature_invalid")?;
+        let signature = Signature::from_slice(&signature).map_err(|_| "ota_signature_invalid")?;
+        key.verify(self.canonical_payload().as_bytes(), &signature)
+            .map_err(|_| "ota_signature_invalid")
+    }
+
+    pub fn canonical_payload(&self) -> String {
+        format!("{{\"board_model\":\"{}\",\"image_sha256\":\"{}\",\"image_url\":\"{}\",\"version\":\"{}\"}}", self.board_model, self.image_sha256.to_ascii_lowercase(), self.image_url, self.version)
     }
 }
 

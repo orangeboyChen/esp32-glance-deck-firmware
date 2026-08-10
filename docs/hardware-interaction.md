@@ -100,6 +100,20 @@ report this as `usb_and_battery`. When VBUS is removed, SYS switches to the
 cell and the 5 V boost keeps the board alive. No firmware decision is involved
 in this switchover.
 
+The resulting operating states are intentionally distinct:
+
+| VBUS | Cell current | Display source | Meaning |
+| --- | --- | --- | --- |
+| Present | Into cell | USB | Normal plugged-in operation; the cell is charging or already full. |
+| Present | Near zero | USB | Charge terminated or suspended by temperature; no battery cycling. |
+| Present | Out of cell | USB + battery | Short, measured input-limit/transient supplement only. |
+| Absent | Out of cell | Battery | Standalone battery operation. |
+
+The charger must expose input-current limiting and power-good/charge status.
+Firmware reports these measurements but does not implement source switching or
+charge termination in software. A fuel-gauge percentage alone is never used to
+infer whether the display is charging or discharging.
+
 The boost converter must be sized for measured Wi-Fi transmit and RLCD refresh
 peaks with margin, include its recommended input/output capacitors, and have a
 low quiescent current appropriate for standby. It supplies **only** the board's

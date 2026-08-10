@@ -7,7 +7,7 @@ import { current_administrator } from '@/server/session'
 import { firmware_releases } from '@/server/schema'
 import { verify_firmware_manifest } from '@/server/firmware-signature'
 
-const release_schema = z.object({ version: z.string().min(1).max(64), board_model: z.literal('ESP32-S3-RLCD-4.2'), channel: z.enum(['stable', 'beta', 'test']).default('stable'), manifest_url: z.url().refine((url) => url.startsWith('https://')), image_url: z.url().refine((url) => url.startsWith('https://')), image_sha256: z.string().regex(/^[a-fA-F0-9]{64}$/), manifest_signature: z.string().min(1) })
+const release_schema = z.object({ version: z.string().min(1).max(64), board_model: z.literal('ESP32-S3-RLCD-4.2'), channel: z.enum(['stable', 'beta', 'test']).default('stable'), manifest_url: z.url().refine((url) => url.startsWith('https://')), image_url: z.url().refine((url) => url.startsWith('https://')), image_sha256: z.string().regex(/^[a-fA-F0-9]{64}$/), manifest_signature: z.string().regex(/^[a-fA-F0-9]{128}$/) })
 
 export async function GET() {
   if (!await current_administrator()) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
