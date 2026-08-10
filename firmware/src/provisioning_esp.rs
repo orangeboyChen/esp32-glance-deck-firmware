@@ -86,6 +86,10 @@ pub fn restart_requested() -> bool {
     RESTART_REQUESTED.load(Ordering::Acquire)
 }
 
+pub fn load_active_wifi_config(partition: &EspDefaultNvsPartition) -> Result<WifiConfig> {
+    load_wifi_config(partition, ACTIVE_WIFI_KEY)?.context("active Wi-Fi configuration missing")
+}
+
 fn connect_station(wifi: &mut BlockingWifi<EspWifi<'static>>, config: &WifiConfig) -> Result<()> {
     if config.ssid.is_empty() || config.ssid.len() > 32 || config.password.len() > 64 {
         bail!("saved Wi-Fi configuration has invalid lengths");

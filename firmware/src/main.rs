@@ -5,13 +5,15 @@ use log::{info, warn};
 use glance_deck_firmware::{
     buttons::{KeyButton, KeyEvent},
     display::{DisplayCache, DisplayRelease},
-    esp_config::load_device_config,
+    enrollment::Enrollment_session,
+    esp_config::{load_control_plane_url, load_device_config, save_device_config},
+    esp_enrollment::announce_and_claim,
     esp_mqtt::EspDeviceMqtt,
     esp_storage::{DisplayStorage, HttpsPageDownloader},
     flash_cache::FlashDisplayCache,
     mqtt::{DeviceState, Device_command, Device_command_action},
     power::{Power_provider, Unavailable_power_provider},
-    provisioning_esp::{restart_requested, start_network, NetworkRuntime},
+    provisioning_esp::{load_active_wifi_config, restart_requested, start_network, NetworkRuntime},
     release_sync::{synchronize_page, synchronize_release},
     rlcd::RlcdRenderer,
 };
@@ -29,10 +31,13 @@ fn main() -> Result<()> {
             return wait_for_restart_with_portal(wifi, _portal);
         }
     };
-    let config = load_device_config(&partition)?.context("device has not completed enrollment")?;
     let storage = DisplayStorage::mount()?;
     let mut cache = FlashDisplayCache::open(storage.cache_path())?;
     let mut renderer = RlcdRenderer::new()?;
+    let config = match load_device_config(&partition)? {
+        Some(config) => config,
+        None => enroll_device(&partition, &mut renderer)?,
+    };
     let mut downloader = HttpsPageDownloader::new();
     let mut mqtt = EspDeviceMqtt::connect(&config.mqtt, &config.device_id)?;
     let mut key = KeyButton::new()?;
@@ -170,6 +175,32 @@ fn main() -> Result<()> {
             }
         }
         std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+fn enroll_device(
+    partition: &esp_idf_svc::nvs::EspDefaultNvsPartition,
+    renderer: &mut RlcdRenderer,
+) -> Result<glance_deck_firmware::config::DeviceConfig> {
+    let control_plane_url = load_control_plane_url(partition)?
+        .context("control plane URL missing; reopen Wi-Fi setup")?;
+    let wifi = load_active_wifi_config(partition)?;
+    let mut random = [0_u8; 32];
+    for word in random.chunks_exact_mut(4) {
+        word.copy_from_slice(&unsafe { esp_idf_svc::sys::esp_random() }.to_le_bytes());
+    }
+    let session = Enrollment_session::from_random(random);
+    renderer.show_pairing_code(&session.pairing_code)?;
+    loop {
+        match announce_and_claim(&control_plane_url, &session, wifi.clone()) {
+            Ok(Some(config)) => {
+                save_device_config(partition, &config)?;
+                return Ok(config);
+            }
+            Ok(None) => {}
+            Err(error) => warn!("enrollment request failed: {error:#}"),
+        }
+        std::thread::sleep(std::time::Duration::from_secs(5));
     }
 }
 
