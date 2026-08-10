@@ -8,6 +8,11 @@ import { device_commands, devices, ota_jobs } from './schema'
 let mqtt_client: MqttClient | undefined
 let state_consumer_started = false
 
+export function set_mqtt_client_for_test(client: MqttClient | undefined) {
+  mqtt_client = client
+  state_consumer_started = false
+}
+
 export function validate_mqtt_url(url: string, allow_plaintext_internal = false) {
   const parsed = new URL(url)
   if (parsed.protocol === 'mqtts:' || parsed.protocol === 'wss:') return parsed
