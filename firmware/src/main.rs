@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use esp_idf_svc::log::EspLogger;
 use log::{info, warn};
+use std::time::{Duration, Instant};
 
 use glance_deck_firmware::{
     buttons::{KeyButton, KeyEvent},
@@ -54,6 +55,7 @@ fn main() -> Result<()> {
     let mut maintenance_long_presses = 0_u8;
     let mut last_ota_nonce: Option<String> = None;
     let mut local_ota_candidate: Option<Ota_command> = None;
+    let mut last_periodic_state = Instant::now();
     let mut current_page_id = cache
         .current_release()?
         .map(|release| release.active_page_id);
@@ -304,6 +306,19 @@ fn main() -> Result<()> {
                     Err(error) => warn!("rejected command: {error}"),
                 }
             }
+        }
+        if last_periodic_state.elapsed() >= Duration::from_secs(15 * 60) {
+            if let Some(release) = cache.current_release()? {
+                let page_id = current_page_id
+                    .as_deref()
+                    .unwrap_or(&release.active_page_id);
+                if let Err(error) =
+                    publish_state(&mut mqtt, &release, page_id, None, true, None, &mut power)
+                {
+                    warn!("periodic device state publish failed: {error:#}");
+                }
+            }
+            last_periodic_state = Instant::now();
         }
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
