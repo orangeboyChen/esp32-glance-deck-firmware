@@ -66,9 +66,23 @@ h3 { font-size: clamp(20px, 2.5vw, 26px); font-weight: 650; letter-spacing: -.02
 .release-card { display: grid; gap: 14px; padding: 22px; }
 .compatible-devices { display: grid; gap: 8px; margin-top: 6px; }
 .firmware-device-row { border-top: 1px solid rgb(110 110 115 / 20%); min-height: 66px; padding-top: 10px; }
+.settings-shell { max-width: 1060px; }
+.settings-alert { margin-top: 32px; }
+.settings-sections { margin-top: 48px; }
+.settings-sections > section { display: grid; gap: 16px; }
+.settings-card { display: grid; gap: 16px; padding: 22px; }
+.settings-token-form { max-width: 700px; }
+.settings-token-form label { font-size: 14px; font-weight: 600; margin-top: 2px; }
+.scope-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.scope-option { align-items: center; display: flex; font-size: 15px; gap: 9px; min-height: 44px; }
+.scope-option input { accent-color: #007aff; height: 18px; width: 18px; }
+.token-list, .passkey-list { width: 100%; }
+.token-row { padding: 16px 20px; }
+.passkey-row { border-top: 1px solid rgb(110 110 115 / 20%); min-height: 58px; padding-top: 8px; }
 @media (max-width: 520px) { .source-row { align-items: stretch; flex-direction: column; } }
 :where(button, [role="button"], a, input, select, textarea):focus-visible { outline: 3px solid #007aff; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 @media (prefers-contrast: more) { .device-card, .summary-item, .empty-state { border-color: currentColor; } .device-card[data-selected] { box-shadow: 0 0 0 3px currentColor; } }
 @media (max-width: 760px) { .dashboard-header { flex-direction: column; } .header-actions { justify-content: flex-start; } .summary-grid { margin: 32px 0 44px; } .device-card { grid-template-columns: minmax(0, 1fr); } .preview-select { max-width: 250px; } }
 @media (max-width: 520px) { .summary-grid { grid-template-columns: 1fr; } .summary-item { min-height: 100px; } .section-header { align-items: stretch; flex-direction: column; } .header-actions { align-items: stretch; flex-direction: column; width: 100%; } .header-actions > * { width: 100%; } }
+@media (max-width: 520px) { .scope-list { grid-template-columns: 1fr; } }
