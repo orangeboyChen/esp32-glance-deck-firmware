@@ -5,7 +5,7 @@ import { eq, sql } from 'drizzle-orm'
 import { db } from './db'
 import { publish_device_release } from './mqtt'
 import { MONO1_IMAGE_FORMAT, render_device_bitmap, type Display_document } from './preview'
-import { devices, display_bindings, display_releases } from './schema'
+import { devices, display_bindings, display_release_pages, display_releases } from './schema'
 
 type SourceValues = Record<string, string | number | null>
 
@@ -54,6 +54,18 @@ export async function publish_source_changes(source_id: string, values: SourceVa
         image_height: 300,
         content_sha256,
       }).returning()
+      await transaction.insert(display_release_pages).values({
+        release_id: release.id,
+        page_id: binding.page_id,
+        position: 0,
+        document,
+        preview_svg: rendered.preview_svg,
+        device_image: rendered.device_image,
+        image_format: MONO1_IMAGE_FORMAT,
+        image_width: 400,
+        image_height: 300,
+        content_sha256,
+      })
       await transaction.update(devices).set({ release_id: release.id, active_page_id: binding.page_id })
         .where(sql`${devices.id} = ANY(${binding.device_ids})`)
       return release

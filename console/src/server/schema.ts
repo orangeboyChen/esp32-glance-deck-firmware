@@ -1,4 +1,4 @@
-import { boolean, customType, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+import { boolean, customType, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType: () => 'bytea',
@@ -56,6 +56,22 @@ export const display_releases = pgTable('display_releases', {
   content_sha256: varchar('content_sha256', { length: 64 }).notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+export const display_release_pages = pgTable('display_release_pages', {
+  release_id: uuid('release_id').references(() => display_releases.id, { onDelete: 'cascade' }).notNull(),
+  page_id: varchar('page_id', { length: 64 }).notNull(),
+  position: integer('position').notNull(),
+  document: jsonb('document').notNull(),
+  preview_svg: text('preview_svg').notNull(),
+  device_image: bytea('device_image').notNull(),
+  image_format: varchar('image_format', { length: 32 }).default('mono1-msb').notNull(),
+  image_width: integer('image_width').default(400).notNull(),
+  image_height: integer('image_height').default(300).notNull(),
+  content_sha256: varchar('content_sha256', { length: 64 }).notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.release_id, table.page_id] }),
+  uniqueIndex('display_release_pages_position_unique').on(table.release_id, table.position),
+])
 
 export const usage_sources = pgTable('usage_sources', {
   id: uuid('id').defaultRandom().primaryKey(),

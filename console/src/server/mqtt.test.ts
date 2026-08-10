@@ -18,7 +18,7 @@ describe('MQTT transport validation', () => {
     process.env.DEVICE_ASSET_SIGNING_KEY = 'unit-test-key'
     const release = { id: 'release-1', active_page_id: 'usage', pages: [{ page_id: 'usage', image_format: 'mono1-msb', image_width: 400, image_height: 300, image_sha256: 'a'.repeat(64), image_bytes: 15000 }] }
     const message = JSON.parse(release_message(release, 'https://console.example'))
-    expect(message.pages[0].image_url).toContain('/api/v1/releases/release-1/image')
+    expect(message.pages[0].image_url).toContain('/api/v1/releases/release-1/pages/usage/image')
     expect(() => release_message({ ...release, pages: [] }, 'https://console.example')).toThrow('release_pages_invalid')
     expect(() => release_message(release, 'http://console.example')).toThrow('device_asset_url_https_required')
   })

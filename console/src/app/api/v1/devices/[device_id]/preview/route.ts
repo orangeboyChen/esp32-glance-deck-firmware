@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import { require_api_scope } from '@/server/auth'
 import { db } from '@/server/db'
-import { devices, display_releases } from '@/server/schema'
+import { devices, display_release_pages, display_releases } from '@/server/schema'
 import { fallback_preview_svg } from '@/server/preview'
 
 export async function GET(request: Request, { params }: { params: Promise<{ device_id: string }> }) {
@@ -13,9 +13,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ devi
 
   const { device_id } = await params
   const [row] = db ? await db
-    .select({ preview_svg: display_releases.preview_svg })
+    .select({ preview_svg: display_release_pages.preview_svg })
     .from(devices)
     .leftJoin(display_releases, eq(devices.release_id, display_releases.id))
+    .leftJoin(display_release_pages, and(eq(display_release_pages.release_id, display_releases.id), eq(display_release_pages.page_id, devices.active_page_id)))
     .where(eq(devices.id, device_id))
     .limit(1) : []
 

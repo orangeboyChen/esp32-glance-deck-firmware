@@ -2,7 +2,7 @@ import { connect, type MqttClient } from 'mqtt'
 import { and, eq } from 'drizzle-orm'
 
 import { db } from './db'
-import { signed_release_image_url } from './assets'
+import { signed_release_page_image_url } from './assets'
 import { device_commands, devices, ota_jobs } from './schema'
 
 let mqtt_client: MqttClient | undefined
@@ -30,7 +30,7 @@ export function release_message(release: { id: string; active_page_id: string; p
     release_id: release.id,
     document_version: 1,
     active_page_id: release.active_page_id,
-    pages: release.pages.map((page) => ({ ...page, image_url: signed_release_image_url(base_url, release.id) })),
+    pages: release.pages.map((page) => ({ ...page, image_url: signed_release_page_image_url(base_url, release.id, page.page_id) })),
   })
 }
 
