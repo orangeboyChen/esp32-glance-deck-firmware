@@ -28,6 +28,7 @@ const CANDIDATE_WIFI_KEY: &str = "wifi_candidate";
 const MAX_WIFI_CONFIG_BYTES: usize = 256;
 const MAX_PORTAL_REQUEST_BYTES: usize = 256;
 const PORTAL_SSID: &str = "GlanceDeck-Setup";
+const PORTAL_ADDRESS: &str = "192.168.4.1";
 static RESTART_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 pub enum NetworkRuntime {
@@ -142,7 +143,7 @@ fn start_portal(
     )?));
     let portal = start_portal_server(store)?;
     info!(
-        "provisioning AP started; SSID={PORTAL_SSID}, password={portal_password}, URL=http://192.168.71.1"
+        "provisioning AP started; SSID={PORTAL_SSID}, password={portal_password}, URL=http://{PORTAL_ADDRESS}"
     );
 
     Ok(NetworkRuntime::Provisioning {
