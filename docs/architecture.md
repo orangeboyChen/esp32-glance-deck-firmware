@@ -39,3 +39,12 @@ Data sources --> Control plane --> MQTT broker <-- Glance Deck
 The display adapter is intentionally isolated because the factory sample's
 driver and pin setup will be brought in after the board is available for a
 hardware smoke test.
+
+## Usage-source imports
+
+`POST /api/v1/sources/cc-switch/preview` accepts a CC Switch UsageScript
+export only as a review aid. It validates the request URL and method, redacts
+credential-bearing fields, and extracts returned field names from extractor
+text without evaluating JavaScript. The administrator must provide the final
+safe JSONPath mapping and encrypted credential values through the normal source
+API; the worker never executes imported JavaScript.
