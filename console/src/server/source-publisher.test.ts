@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { render_bound_document } from './source-publisher'
+import { render_bound_document, template_value } from './source-publisher'
 
 describe('bound source document rendering', () => {
   test('interpolates only persisted source values and marks unavailable values', () => {
@@ -15,5 +15,9 @@ describe('bound source document rendering', () => {
       subtitle: 'Resets tomorrow',
       lines: [{ label: 'Today', value: '72 / 100 %' }, { label: 'Remaining', value: '—' }],
     })
+  })
+
+  test('preserves unsupported interpolation syntax and substitutes a missing value', () => {
+    expect(template_value('{{unknown}} / {{UPPER}} / {{used}}', { used: 8 })).toBe('— / {{UPPER}} / 8')
   })
 })

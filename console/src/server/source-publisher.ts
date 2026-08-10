@@ -9,7 +9,7 @@ import { devices, display_bindings, display_releases } from './schema'
 
 type SourceValues = Record<string, string | number | null>
 
-function template_value(value: string, values: SourceValues) {
+export function template_value(value: string, values: SourceValues) {
   return value.replace(/\{\{([a-z_]+)\}\}/g, (_match, key: string) => String(values[key] ?? '—'))
 }
 
