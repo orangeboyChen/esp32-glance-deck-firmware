@@ -65,7 +65,7 @@ impl FlashDisplayCache {
         if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(FlashCacheError::InvalidHash);
         }
-        Ok(self.root.join(format!("{hash}.bin")))
+        Ok(self.root.join(hash))
     }
 
     fn save_index(&self) -> Result<(), FlashCacheError> {
@@ -206,6 +206,31 @@ mod tests {
             cache.read_page(&hash),
             Err(FlashCacheError::InvalidFrame)
         ));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn evicts_the_least_recently_added_frame_above_the_flash_limit() {
+        let root = test_root();
+        let mut cache = FlashDisplayCache::open(&root).unwrap();
+        let mut first_hash = String::new();
+        for index in 0..=MAX_CACHED_PAGE_COUNT {
+            let frame = vec![index as u8; DISPLAY_IMAGE_BYTES];
+            let mut page = page(&frame);
+            page.page_id = format!("page-{index}");
+            let release = DisplayRelease {
+                release_id: format!("release-{index}"),
+                document_version: 1,
+                active_page_id: page.page_id.clone(),
+                pages: vec![page.clone()],
+            };
+            if index == 0 {
+                first_hash = page.image_sha256.clone();
+            }
+            cache.commit_release(&release, &[(page, frame)]).unwrap();
+        }
+        assert!(!cache.contains_page(&first_hash).unwrap());
+        assert_eq!(cache.index.page_hashes.len(), MAX_CACHED_PAGE_COUNT);
         fs::remove_dir_all(root).unwrap();
     }
 }
