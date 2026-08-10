@@ -10,7 +10,7 @@ CREATE TABLE "administrators" (
 CREATE UNIQUE INDEX "administrators_email_unique" ON "administrators" ("email");
 CREATE TABLE "sessions" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "administrator_id" uuid NOT NULL REFERENCES "administrators"("id") ON DELETE CASCADE,
+  "administrator_id" uuid REFERENCES "administrators"("id") ON DELETE CASCADE,
   "token_hash" text NOT NULL,
   "expires_at" timestamp with time zone NOT NULL,
   "created_at" timestamp with time zone NOT NULL DEFAULT now()

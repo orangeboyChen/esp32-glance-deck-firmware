@@ -30,7 +30,7 @@ export const passkeys = pgTable('passkeys', {
 
 export const webauthn_challenges = pgTable('webauthn_challenges', {
   id: uuid('id').defaultRandom().primaryKey(),
-  administrator_id: uuid('administrator_id').references(() => administrators.id, { onDelete: 'cascade' }).notNull(),
+  administrator_id: uuid('administrator_id').references(() => administrators.id, { onDelete: 'cascade' }),
   challenge: text('challenge').notNull(),
   purpose: varchar('purpose', { length: 32 }).notNull(),
   expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),

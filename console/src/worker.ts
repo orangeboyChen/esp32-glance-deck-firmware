@@ -1,4 +1,5 @@
 import { dispatch_queued_commands } from './server/commands'
+import { start_device_state_consumer } from './server/mqtt'
 
 const worker_name = 'glance-deck-worker'
 
@@ -12,5 +13,6 @@ async function tick() {
 }
 
 console.log(`${worker_name}: ready to process command, source, and OTA jobs`)
+start_device_state_consumer()
 await tick()
 setInterval(tick, 1_000)

@@ -1,5 +1,5 @@
-import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server'
-import type { AuthenticatorTransportFuture, RegistrationResponseJSON } from '@simplewebauthn/types'
+import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
+import type { AuthenticationResponseJSON, AuthenticatorTransportFuture, RegistrationResponseJSON } from '@simplewebauthn/types'
 import { and, eq, gt } from 'drizzle-orm'
 
 import { db } from './db'
@@ -61,5 +61,53 @@ export async function finish_passkey_registration(administrator_id: string, resp
     counter: credential.counter,
     transports: response.response.transports,
   })
+  await db.delete(webauthn_challenges).where(eq(webauthn_challenges.id, challenge.id))
   return verification.verified
+}
+
+export async function begin_passkey_authentication() {
+  if (!db) throw new Error('database_unavailable')
+  const options = await generateAuthenticationOptions({ rpID: rp_id, userVerification: 'preferred' })
+  await db.insert(webauthn_challenges).values({
+    administrator_id: null,
+    challenge: options.challenge,
+    purpose: 'authentication',
+    expires_at: new Date(Date.now() + 5 * 60 * 1000),
+  })
+  return options
+}
+
+export async function finish_passkey_authentication(response: AuthenticationResponseJSON) {
+  if (!db) throw new Error('database_unavailable')
+  const [credential] = await db.select().from(passkeys).where(eq(passkeys.credential_id, response.id)).limit(1)
+  if (!credential) throw new Error('credential_not_found')
+
+  const [challenge] = await db.select().from(webauthn_challenges)
+    .where(and(
+      eq(webauthn_challenges.purpose, 'authentication'),
+      gt(webauthn_challenges.expires_at, new Date()),
+    ))
+    .orderBy(webauthn_challenges.created_at)
+    .limit(1)
+  if (!challenge) throw new Error('challenge_expired')
+
+  const verification = await verifyAuthenticationResponse({
+    response,
+    expectedChallenge: challenge.challenge,
+    expectedOrigin: origin,
+    expectedRPID: rp_id,
+    credential: {
+      id: credential.credential_id,
+      publicKey: Buffer.from(credential.public_key, 'base64url'),
+      counter: credential.counter,
+      transports: (credential.transports as AuthenticatorTransportFuture[] | null) ?? undefined,
+    },
+  })
+  if (!verification.verified) throw new Error('authentication_not_verified')
+
+  await db.transaction(async (transaction) => {
+    await transaction.update(passkeys).set({ counter: verification.authenticationInfo.newCounter }).where(eq(passkeys.id, credential.id))
+    await transaction.delete(webauthn_challenges).where(eq(webauthn_challenges.id, challenge.id))
+  })
+  return credential.administrator_id
 }

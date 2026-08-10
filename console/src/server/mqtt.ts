@@ -1,6 +1,11 @@
 import { connect, type MqttClient } from 'mqtt'
+import { and, eq } from 'drizzle-orm'
+
+import { db } from './db'
+import { device_commands, devices } from './schema'
 
 let mqtt_client: MqttClient | undefined
+let state_consumer_started = false
 
 function get_client() {
   if (mqtt_client) return mqtt_client
@@ -19,3 +24,65 @@ export async function publish_device_command(device_id: string, command: { id: s
     client.publish(topic, message, { qos: 1 }, (error) => error ? reject(error) : resolve())
   })
 }
+
+type DeviceStateMessage = {
+  version: number
+  page_id: string
+  wifi_rssi: number
+  display_release_id?: string
+  command_id?: string
+  command_status?: 'confirmed' | 'failed'
+  error_message?: string
+  firmware_version?: string
+}
+
+function is_device_state(value: unknown): value is DeviceStateMessage {
+  if (!value || typeof value !== 'object') return false
+  const state = value as Record<string, unknown>
+  return typeof state.version === 'number'
+    && typeof state.page_id === 'string'
+    && typeof state.wifi_rssi === 'number'
+    && (state.command_id === undefined || typeof state.command_id === 'string')
+    && (state.command_status === undefined || state.command_status === 'confirmed' || state.command_status === 'failed')
+    && (state.firmware_version === undefined || typeof state.firmware_version === 'string')
+}
+
+async function consume_device_state(topic: string, payload: Buffer) {
+  const match = /^glance_deck\/([a-z0-9-]{1,64})\/state$/.exec(topic)
+  if (!match || !db || payload.length > 4096) return
+  let state: unknown
+  try {
+    state = JSON.parse(payload.toString('utf8'))
+  } catch {
+    return
+  }
+  if (!is_device_state(state)) return
+  const device_id = match[1]
+  await db.update(devices).set({
+    status: 'online',
+    active_page_id: state.page_id,
+    wifi_rssi: Math.trunc(state.wifi_rssi),
+    firmware_version: state.firmware_version,
+    last_seen_at: new Date(),
+  }).where(eq(devices.id, device_id))
+
+  if (state.command_id && state.command_status) {
+    await db.update(device_commands).set({
+      status: state.command_status,
+      error_message: state.command_status === 'failed' ? state.error_message ?? 'device_command_failed' : null,
+      confirmed_at: state.command_status === 'confirmed' ? new Date() : null,
+    }).where(and(eq(device_commands.id, state.command_id), eq(device_commands.device_id, device_id), eq(device_commands.status, 'sent')))
+  }
+}
+
+export function start_device_state_consumer() {
+  if (state_consumer_started) return
+  const client = get_client()
+  state_consumer_started = true
+  client.subscribe(`${TOPIC_PREFIX}/+/state`, { qos: 1 })
+  client.on('message', (topic, payload) => {
+    void consume_device_state(topic, payload).catch((error) => console.error('device state consume failed', error))
+  })
+}
+
+const TOPIC_PREFIX = 'glance_deck'

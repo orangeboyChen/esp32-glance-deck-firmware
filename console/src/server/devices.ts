@@ -9,6 +9,8 @@ export type DeviceSummary = {
   status: 'enrolling' | 'online' | 'offline' | 'error'
   firmware_version: string | null
   active_page_id: string
+  wifi_rssi: number | null
+  last_seen_at: Date | null
   preview_svg: string | null
 }
 
@@ -22,6 +24,8 @@ export async function list_devices(): Promise<DeviceSummary[]> {
       status: devices.status,
       firmware_version: devices.firmware_version,
       active_page_id: devices.active_page_id,
+      wifi_rssi: devices.wifi_rssi,
+      last_seen_at: devices.last_seen_at,
       preview_svg: display_releases.preview_svg,
     })
     .from(devices)
