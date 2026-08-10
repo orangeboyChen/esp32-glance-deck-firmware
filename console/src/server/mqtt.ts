@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 
 import { db } from './db'
 import { signed_release_image_url } from './assets'
-import { device_commands, devices } from './schema'
+import { device_commands, devices, ota_jobs } from './schema'
 
 let mqtt_client: MqttClient | undefined
 let state_consumer_started = false
@@ -54,6 +54,12 @@ type DeviceStateMessage = {
   firmware_version?: string
 }
 
+type OtaStateMessage = {
+  job_id: string
+  phase: 'downloading' | 'verifying' | 'rebooting' | 'healthy' | 'rolled_back' | 'failed'
+  error_message?: string
+}
+
 function is_device_state(value: unknown): value is DeviceStateMessage {
   if (!value || typeof value !== 'object') return false
   const state = value as Record<string, unknown>
@@ -93,13 +99,31 @@ async function consume_device_state(topic: string, payload: Buffer) {
   }
 }
 
+async function consume_ota_state(topic: string, payload: Buffer) {
+  const match = /^glance_deck\/([a-z0-9-]{1,64})\/ota\/state$/.exec(topic)
+  if (!match || !db || payload.length > 4096) return
+  let state: unknown
+  try { state = JSON.parse(payload.toString('utf8')) } catch { return }
+  if (!state || typeof state !== 'object') return
+  const message = state as Record<string, unknown>
+  const valid_phase = ['downloading', 'verifying', 'rebooting', 'healthy', 'rolled_back', 'failed'].includes(String(message.phase))
+  if (typeof message.job_id !== 'string' || !valid_phase || (message.error_message !== undefined && typeof message.error_message !== 'string')) return
+  const phase = message.phase as OtaStateMessage['phase']
+  await db.update(ota_jobs).set({
+    status: phase,
+    error_message: phase === 'failed' ? (message.error_message as string | undefined) ?? 'device_ota_failed' : null,
+    completed_at: phase === 'healthy' || phase === 'rolled_back' || phase === 'failed' ? new Date() : null,
+  }).where(and(eq(ota_jobs.id, message.job_id), eq(ota_jobs.device_id, match[1])))
+}
+
 export function start_device_state_consumer() {
   if (state_consumer_started) return
   const client = get_client()
   state_consumer_started = true
-  client.subscribe(`${TOPIC_PREFIX}/+/state`, { qos: 1 })
+  client.subscribe([`${TOPIC_PREFIX}/+/state`, `${TOPIC_PREFIX}/+/ota/state`], { qos: 1 })
   client.on('message', (topic, payload) => {
-    void consume_device_state(topic, payload).catch((error) => console.error('device state consume failed', error))
+    const handler = topic.endsWith('/ota/state') ? consume_ota_state : consume_device_state
+    void handler(topic, payload).catch((error) => console.error('device MQTT state consume failed', error))
   })
 }
 

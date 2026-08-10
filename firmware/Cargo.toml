@@ -8,16 +8,25 @@ rust-version = "1.84"
 esp_idf_version = "v5.3.1"
 sdkconfig_defaults = ["sdkconfig.defaults"]
 
+[features]
+default = []
+esp = ["dep:anyhow", "dep:esp-idf-hal", "dep:esp-idf-svc", "dep:esp-idf-sys", "dep:log"]
+
 [dependencies]
-anyhow = "1.0"
+anyhow = { version = "1.0", optional = true }
 embedded-svc = "0.28"
-esp-idf-hal = "0.45"
-esp-idf-svc = "0.51"
-esp-idf-sys = { version = "0.36", features = ["binstart"] }
-log = "0.4"
+esp-idf-hal = { version = "0.45", optional = true }
+esp-idf-svc = { version = "0.51", optional = true }
+esp-idf-sys = { version = "0.36", features = ["binstart"], optional = true }
+log = { version = "0.4", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 
 [build-dependencies]
-embuild = "0.32"
+embuild = { version = "0.32", features = ["espidf"] }
+
+[[bin]]
+name = "glance-deck-firmware"
+path = "src/main.rs"
+required-features = ["esp"]

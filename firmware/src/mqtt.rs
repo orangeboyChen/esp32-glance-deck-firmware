@@ -105,6 +105,26 @@ pub enum Command_status {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Ota_phase {
+    Downloading,
+    Verifying,
+    Rebooting,
+    Healthy,
+    Rolled_back,
+    Failed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Ota_state {
+    pub job_id: String,
+    pub phase: Ota_phase,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Ota_command {
     pub job_id: String,

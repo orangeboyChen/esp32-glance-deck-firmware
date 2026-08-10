@@ -7,6 +7,7 @@ firmware/target/
 console/.next/
 node_modules/
 .next/
+console/coverage/
 
 firmware/.embuild/
 home-assistant/**/__pycache__/
