@@ -2,6 +2,7 @@ import { connect, type MqttClient } from 'mqtt'
 import { and, eq } from 'drizzle-orm'
 
 import { db } from './db'
+import { signed_release_image_url } from './assets'
 import { device_commands, devices } from './schema'
 
 let mqtt_client: MqttClient | undefined
@@ -38,7 +39,7 @@ export async function publish_device_release(device_id: string, release: { id: s
   const client = get_client()
   const base_url = process.env.DEVICE_ASSET_URL ?? process.env.APP_URL
   if (!base_url?.startsWith('https://')) throw new Error('device_asset_url_https_required')
-  const message = JSON.stringify({ release_id: release.id, document_version: 1, image_url: `${base_url}/api/v1/releases/${release.id}/image`, image_sha256: release.image_sha256, image_bytes: release.image_bytes, active_page_id: release.page_id })
+  const message = JSON.stringify({ release_id: release.id, document_version: 1, image_url: signed_release_image_url(base_url, release.id), image_sha256: release.image_sha256, image_bytes: release.image_bytes, active_page_id: release.page_id })
   await new Promise<void>((resolve, reject) => client.publish(`${TOPIC_PREFIX}/${device_id}/release`, message, { qos: 1, retain: true }, (error) => error ? reject(error) : resolve()))
 }
 

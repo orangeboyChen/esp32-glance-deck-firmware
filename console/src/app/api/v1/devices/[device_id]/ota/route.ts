@@ -7,7 +7,7 @@ import { create_ota_nonce } from '@/server/ota'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
-const ota_schema = z.object({ firmware_release_id: z.uuid() })
+const ota_schema = z.object({ firmware_release_id: z.uuid().optional() })
 
 export async function POST(request: Request, { params }: { params: Promise<{ device_id: string }> }) {
   if (!await require_api_scope(request, 'ota:install')) {
@@ -19,7 +19,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ dev
   if (!body.success) return NextResponse.json({ error: 'invalid_ota_request' }, { status: 400 })
   const { device_id } = await params
   const [device] = await db.select().from(devices).where(eq(devices.id, device_id)).limit(1)
-  const [release] = await db.select().from(firmware_releases).where(eq(firmware_releases.id, body.data.firmware_release_id)).limit(1)
+  const release_query = body.data.firmware_release_id
+    ? db.select().from(firmware_releases).where(eq(firmware_releases.id, body.data.firmware_release_id)).limit(1)
+    : db.select().from(firmware_releases).where(eq(firmware_releases.channel, 'stable')).orderBy(firmware_releases.created_at).limit(1)
+  const [release] = await release_query
   if (!device || !release) return NextResponse.json({ error: 'device_or_release_not_found' }, { status: 404 })
   if (release.board_model !== device.board_model) return NextResponse.json({ error: 'incompatible_release' }, { status: 409 })
   const [job] = await db.insert(ota_jobs).values({ device_id, firmware_release_id: release.id, nonce: create_ota_nonce() }).returning()
