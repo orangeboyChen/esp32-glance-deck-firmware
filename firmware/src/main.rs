@@ -14,6 +14,7 @@ use glance_deck_firmware::{
     esp_ota::{mark_running_image_healthy, EspHttpsOtaTransport, InactiveOtaWriter},
     esp_storage::{DisplayStorage, HttpsPageDownloader},
     flash_cache::FlashDisplayCache,
+    local_screen::maintenance_frame,
     mqtt::{
         DeviceState, Device_command, Device_command_action, Mqtt_client, Ota_command, Ota_phase,
         Ota_state,
@@ -51,6 +52,7 @@ fn main() -> Result<()> {
     let mut key = KeyButton::new()?;
     let mut power = Unavailable_power_provider;
     let mut maintenance_long_presses = 0_u8;
+    let mut last_ota_nonce: Option<String> = None;
     let mut current_page_id = cache
         .current_release()?
         .map(|release| release.active_page_id);
@@ -107,6 +109,16 @@ fn main() -> Result<()> {
             Some(KeyEvent::LongPress) => {
                 maintenance_long_presses = maintenance_long_presses.saturating_add(1);
                 info!("maintenance long press {maintenance_long_presses}/3");
+                let message = match maintenance_long_presses {
+                    1 => "MAINTENANCE",
+                    2 => "HOLD 3X",
+                    _ => "STARTING",
+                };
+                if let Ok(frame) = maintenance_frame(message) {
+                    if let Err(error) = renderer.flush_frame(&frame) {
+                        warn!("maintenance frame could not be rendered: {error:#}");
+                    }
+                }
                 if maintenance_long_presses >= 3 {
                     request_wifi_provisioning(&partition)?;
                     info!("Wi-Fi reprovisioning requested; restarting");
@@ -117,7 +129,9 @@ fn main() -> Result<()> {
         }
         if let Some(message) = mqtt.next_message() {
             if message.topic == mqtt.topics().ota() {
-                if let Err(error) = handle_ota(&message.payload, &mut mqtt, &mut power) {
+                if let Err(error) =
+                    handle_ota(&message.payload, &mut mqtt, &mut power, &mut last_ota_nonce)
+                {
                     warn!("OTA job failed: {error:#}");
                 }
             } else if message.topic == mqtt.topics().release() {
@@ -246,9 +260,14 @@ fn handle_ota(
     payload: &[u8],
     mqtt: &mut EspDeviceMqtt,
     power: &mut impl glance_deck_firmware::power::Power_provider,
+    last_ota_nonce: &mut Option<String>,
 ) -> Result<()> {
     let command: Ota_command =
         serde_json::from_slice(payload).context("ota_command_json_invalid")?;
+    command.validate().map_err(anyhow::Error::msg)?;
+    if last_ota_nonce.as_deref() == Some(command.nonce.as_str()) {
+        anyhow::bail!("ota_nonce_replayed");
+    }
     let mut reporter = MqttOtaReporter { mqtt };
     let measurement = power.sample();
     let external_power = matches!(
@@ -287,6 +306,7 @@ fn handle_ota(
     };
     match processor.run(&command, &mut policy, &mut transport, writer, &mut reporter) {
         Ok(()) => {
+            *last_ota_nonce = Some(command.nonce.clone());
             std::thread::sleep(std::time::Duration::from_millis(250));
             unsafe { esp_idf_svc::sys::esp_restart() };
             Ok(())
