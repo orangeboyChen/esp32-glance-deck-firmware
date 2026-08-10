@@ -1,0 +1,28 @@
+show_page:
+  name: Show page
+  description: Ask the control plane to show a named page on a device.
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+    page_id:
+      required: true
+      selector:
+        text:
+refresh_device:
+  name: Refresh display
+  description: Ask the control plane to publish the active release again.
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+start_ota:
+  name: Start update
+  description: Ask the control plane to start an approved OTA job.
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
