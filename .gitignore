@@ -1,0 +1,5 @@
+.DS_Store
+.vscode/
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
