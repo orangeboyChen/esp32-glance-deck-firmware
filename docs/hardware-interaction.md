@@ -142,6 +142,12 @@ means a measurable supplement/charging path, `battery` means VBUS absent, and
 must display the source, charging state, last sample time, percentage, and
 voltage, and must treat unknown telemetry conservatively for OTA.
 
+The Rust power layer includes a fail-closed measurement provider and MAX17048
+raw-register conversion helpers. The ESP target must instantiate that provider
+only after the carrier PCB's I²C pins, charger status GPIOs, and voltage levels
+are measured during bring-up; until then the production default remains
+`unavailable` rather than inventing a battery percentage.
+
 ## Enrollment and reprovisioning
 
 First boot and failed station reconnect start a WPA2 SoftAP with a random

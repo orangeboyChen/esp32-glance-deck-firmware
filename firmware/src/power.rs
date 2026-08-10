@@ -4,6 +4,12 @@ pub trait Power_provider {
     fn sample(&mut self) -> Device_power_state;
 }
 
+pub trait Power_measurement_reader {
+    type Error;
+
+    fn read_measurement(&mut self) -> Result<Power_measurement, Self::Error>;
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Power_measurement {
     pub vbus_present: bool,
@@ -41,6 +47,41 @@ impl Power_provider for Unavailable_power_provider {
             battery_mv: None,
         }
     }
+}
+
+pub struct Measured_power_provider<R> {
+    reader: R,
+}
+
+impl<R> Measured_power_provider<R> {
+    pub fn new(reader: R) -> Self {
+        Self { reader }
+    }
+}
+
+impl<R> Power_provider for Measured_power_provider<R>
+where
+    R: Power_measurement_reader,
+{
+    fn sample(&mut self) -> Device_power_state {
+        self.reader
+            .read_measurement()
+            .map(classify_measurement)
+            .unwrap_or(Device_power_state {
+                source: Power_source::Unavailable,
+                charging: None,
+                battery_percent: None,
+                battery_mv: None,
+            })
+    }
+}
+
+pub fn max17048_voltage_mv(raw: u16) -> u16 {
+    ((raw as u32 * 5) / 64).min(u16::MAX as u32) as u16
+}
+
+pub fn max17048_percent(raw: u16) -> u8 {
+    ((raw >> 8).min(100)) as u8
 }
 
 #[cfg(test)]
@@ -106,5 +147,23 @@ mod tests {
                 battery_mv: None,
             }
         );
+    }
+
+    struct Test_reader(Result<Power_measurement, ()>);
+
+    impl Power_measurement_reader for Test_reader {
+        type Error = ();
+
+        fn read_measurement(&mut self) -> Result<Power_measurement, Self::Error> {
+            self.0.clone()
+        }
+    }
+
+    #[test]
+    fn measured_provider_fails_closed_and_converts_gauge_values() {
+        let mut provider = Measured_power_provider::new(Test_reader(Err(())));
+        assert_eq!(provider.sample().source, Power_source::Unavailable);
+        assert_eq!(max17048_voltage_mv(0xCCCD), 4_096);
+        assert_eq!(max17048_percent(72 << 8), 72);
     }
 }
