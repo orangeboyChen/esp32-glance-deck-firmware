@@ -15,9 +15,9 @@ const { consume_device_state, consume_ota_state } = await import('./mqtt')
 describe('MQTT state consumers', () => {
   test('persists valid device state and command confirmation', async () => {
     updates.length = 0
-    await consume_device_state('glance_deck/desk-1/state', Buffer.from(JSON.stringify({ version: 1, page_id: 'usage', wifi_rssi: -55, firmware_version: '1.0.0', command_id: 'command-1', command_status: 'confirmed' })))
+    await consume_device_state('glance_deck/desk-1/state', Buffer.from(JSON.stringify({ version: 1, page_id: 'usage', wifi_rssi: -55, firmware_version: '1.0.0', power: { source: 'usb_and_battery', charging: true, battery_percent: 82, battery_mv: 3975 }, command_id: 'command-1', command_status: 'confirmed' })))
     expect(updates).toHaveLength(2)
-    expect(updates[0]).toMatchObject({ status: 'online', active_page_id: 'usage', wifi_rssi: -55, firmware_version: '1.0.0' })
+    expect(updates[0]).toMatchObject({ status: 'online', active_page_id: 'usage', wifi_rssi: -55, firmware_version: '1.0.0', power_source: 'usb_and_battery', charging: true, battery_percent: 82, battery_mv: 3975, power_updated_at: expect.any(Date) })
     expect(updates[1]).toMatchObject({ status: 'confirmed', confirmed_at: expect.any(Date) })
   })
 
@@ -27,6 +27,7 @@ describe('MQTT state consumers', () => {
     await consume_device_state('glance_deck/desk-1/state', Buffer.from('invalid JSON'))
     await consume_device_state('glance_deck/desk-1/state', Buffer.alloc(4097))
     await consume_device_state('glance_deck/desk-1/state', Buffer.from(JSON.stringify({ version: 1, page_id: 'usage', wifi_rssi: 'bad' })))
+    await consume_device_state('glance_deck/desk-1/state', Buffer.from(JSON.stringify({ version: 1, page_id: 'usage', wifi_rssi: -55, power: { source: 'battery', battery_percent: 101 } })))
     expect(updates).toHaveLength(0)
   })
 

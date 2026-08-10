@@ -51,6 +51,7 @@ impl PageController {
                 command_status: None,
                 error_message: None,
                 firmware_version: None,
+                power: None,
             };
             let payload = serde_json::to_vec(&state).expect("device state must serialize");
             mqtt.publish(&topics.state(), &payload, true)

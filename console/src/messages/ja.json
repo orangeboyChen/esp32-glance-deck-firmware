@@ -29,6 +29,17 @@
     "connectSource": "ソースを接続",
     "publishFirstRelease": "デバイスをペアリングして、最初の表示リリースを公開してください。",
     "language": "言語",
-    "closeNotice": "通知を閉じる"
+    "closeNotice": "通知を閉じる",
+    "pageControl": "表示ページ",
+    "pageControlDescription": "最大10ページと次に表示するページを選びます。確認済みページはデバイスの報告後にだけ更新されます。",
+    "pagesLoading": "ページ設定を読み込み中…",
+    "pagesUnavailable": "ページを設定する前に表示リリースを公開してください。",
+    "confirmedPage": "確認済み: {page}",
+    "targetPage": "対象: {page}",
+    "pageCount": "{count} ページを有効化",
+    "showPage": "表示ページにする",
+    "savePages": "ページを保存",
+    "pagesSaved": "ページ設定をデバイスに送信しました。",
+    "pagesSaveFailed": "ページ設定を保存できません。"
   }
 }

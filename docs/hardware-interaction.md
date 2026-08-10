@@ -42,6 +42,27 @@ separate physical recovery flow.
   visible frame. The System page identifies stale data, last successful update,
   and a specific failure reason.
 
+## Page transition and power
+
+- A page change has no full-frame animation. The renderer flushes the verified
+  target frame once, then overlays the position dots for two seconds. This is
+  deliberate: repeatedly refreshing a reflective LCD for visual animation
+  wastes battery and produces distracting flicker. The overlay is disabled in
+  reduced-motion and critical-battery modes.
+- Battery operation requires an approved battery/charger carrier or fuel-gauge
+  accessory. Firmware must not infer a battery percentage from the ESP32 ADC
+  until the carrier's divider ratio, ADC calibration, and charge-detect signal
+  have been verified for the installed hardware.
+- The power driver reports source, charging state, and, when measurable,
+  battery percentage and millivolts every 15 minutes, after a material power
+  change, and before OTA. The System screen always shows the same current
+  values and a text state such as `Battery unavailable`; it never fabricates a
+  percentage.
+- On battery below 20%, extend source-refresh and telemetry intervals. Below
+  10%, disable optional audio and page-transition overlay. Below the configured
+  OTA threshold (default 30% unless external power is present), reject OTA with
+  the explicit `power_unsafe_for_ota` result.
+
 ## Enrollment and reprovisioning
 
 First boot and failed station reconnect start a WPA2 SoftAP with a random

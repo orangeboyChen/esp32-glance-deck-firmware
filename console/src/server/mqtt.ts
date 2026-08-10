@@ -88,6 +88,12 @@ type DeviceStateMessage = {
   command_status?: 'confirmed' | 'failed'
   error_message?: string
   firmware_version?: string
+  power?: {
+    source: 'usb' | 'battery' | 'usb_and_battery' | 'unavailable'
+    charging?: boolean
+    battery_percent?: number
+    battery_mv?: number
+  }
 }
 
 type OtaStateMessage = {
@@ -105,6 +111,20 @@ export function is_device_state(value: unknown): value is DeviceStateMessage {
     && (state.command_id === undefined || typeof state.command_id === 'string')
     && (state.command_status === undefined || state.command_status === 'confirmed' || state.command_status === 'failed')
     && (state.firmware_version === undefined || typeof state.firmware_version === 'string')
+    && (state.power === undefined || is_device_power_state(state.power))
+}
+
+function is_device_power_state(value: unknown): value is NonNullable<DeviceStateMessage['power']> {
+  if (!value || typeof value !== 'object') return false
+  const power = value as Record<string, unknown>
+  const has_valid_percent = power.battery_percent === undefined
+    || (typeof power.battery_percent === 'number' && Number.isInteger(power.battery_percent) && power.battery_percent >= 0 && power.battery_percent <= 100)
+  const has_valid_voltage = power.battery_mv === undefined
+    || (typeof power.battery_mv === 'number' && Number.isInteger(power.battery_mv) && power.battery_mv >= 2_500 && power.battery_mv <= 5_500)
+  return (power.source === 'usb' || power.source === 'battery' || power.source === 'usb_and_battery' || power.source === 'unavailable')
+    && (power.charging === undefined || typeof power.charging === 'boolean')
+    && has_valid_percent
+    && has_valid_voltage
 }
 
 export function is_ota_state(value: unknown): value is OtaStateMessage {
@@ -132,6 +152,11 @@ export async function consume_device_state(topic: string, payload: Buffer) {
     active_page_id: state.page_id,
     wifi_rssi: Math.trunc(state.wifi_rssi),
     firmware_version: state.firmware_version,
+    power_source: state.power?.source,
+    charging: state.power?.charging,
+    battery_percent: state.power?.battery_percent,
+    battery_mv: state.power?.battery_mv,
+    power_updated_at: state.power ? new Date() : undefined,
     last_seen_at: new Date(),
   }).where(eq(devices.id, device_id))
 

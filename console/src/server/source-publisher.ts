@@ -66,7 +66,7 @@ export async function publish_source_changes(source_id: string, values: SourceVa
         image_height: 300,
         content_sha256,
       })
-      await transaction.update(devices).set({ release_id: release.id, active_page_id: binding.page_id })
+      await transaction.update(devices).set({ release_id: release.id, desired_page_id: binding.page_id, enabled_page_ids: [binding.page_id] })
         .where(sql`${devices.id} = ANY(${binding.device_ids})`)
       return release
     })

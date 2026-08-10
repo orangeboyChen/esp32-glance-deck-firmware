@@ -95,6 +95,29 @@ pub struct DeviceState {
     pub error_message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub firmware_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub power: Option<Device_power_state>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Device_power_state {
+    pub source: Power_source,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub charging: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub battery_percent: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub battery_mv: Option<u16>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Power_source {
+    Usb,
+    Battery,
+    Usb_and_battery,
+    Unavailable,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

@@ -1,9 +1,10 @@
 'use client'
 
-import { Alert, Block, Button, Empty, Flexbox, Segmented, Tag, Text, Tooltip, toast } from '@lobehub/ui'
+import { Alert, Block, Button, Checkbox, Empty, Flexbox, Segmented, Tag, Text, Tooltip, toast } from '@lobehub/ui'
 import { CircleAlert, ChevronRight, Monitor, Plus, Radio, RefreshCw, Wifi } from 'lucide-react'
 import { useAtom, useSetAtom } from 'jotai'
 import { useLocale, useTranslations } from 'next-intl'
+import { useEffect, useState } from 'react'
 
 import { DevicePreview } from './device-preview'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -18,6 +19,13 @@ import type { DeviceSummary } from '@/server/devices'
 
 type DeviceDashboardProps = {
   devices: DeviceSummary[]
+}
+
+type DevicePageConfiguration = {
+  active_page_id: string
+  desired_page_id: string
+  enabled_page_ids: string[]
+  available_pages: Array<{ page_id: string }>
 }
 
 function status_color(status: DeviceSummary['status']) {
@@ -37,6 +45,9 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
   const translate = useTranslations('Dashboard')
   const begin_command = useSetAtom(begin_device_command_atom)
   const resolve_command = useSetAtom(resolve_device_command_atom)
+  const [page_configuration, set_page_configuration] = useState<DevicePageConfiguration | null>(null)
+  const [page_loading, set_page_loading] = useState(false)
+  const [page_saving, set_page_saving] = useState(false)
   const change_locale = (next_locale: 'en' | 'zh-CN' | 'ja') => router.replace(pathname, { locale: next_locale })
 
   const select_device = (device: DeviceSummary) => {
@@ -47,6 +58,45 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
       message: translate('previewSelected', { name: device.name }),
       phase: 'idle',
     })
+  }
+
+  useEffect(() => {
+    if (!selected_device_id) {
+      set_page_configuration(null)
+      return
+    }
+    let cancelled = false
+    set_page_loading(true)
+    void fetch(`/api/v1/devices/${selected_device_id}/pages`, { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() as Promise<DevicePageConfiguration> : null)
+      .then((configuration) => { if (!cancelled) set_page_configuration(configuration) })
+      .catch(() => { if (!cancelled) set_page_configuration(null) })
+      .finally(() => { if (!cancelled) set_page_loading(false) })
+    return () => { cancelled = true }
+  }, [selected_device_id])
+
+  const toggle_page = (page_id: string, checked: boolean) => {
+    if (!page_configuration) return
+    const enabled_page_ids = checked
+      ? [...page_configuration.enabled_page_ids, page_id]
+      : page_configuration.enabled_page_ids.filter((item) => item !== page_id)
+    if (!enabled_page_ids.length || enabled_page_ids.length > 10) return
+    set_page_configuration({ ...page_configuration, enabled_page_ids, desired_page_id: enabled_page_ids.includes(page_configuration.desired_page_id) ? page_configuration.desired_page_id : enabled_page_ids[0] })
+  }
+
+  const save_pages = async () => {
+    if (!selected_device_id || !page_configuration) return
+    set_page_saving(true)
+    try {
+      const response = await fetch(`/api/v1/devices/${selected_device_id}/pages`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled_page_ids: page_configuration.enabled_page_ids, desired_page_id: page_configuration.desired_page_id }) })
+      if (!response.ok) throw new Error('page_configuration_rejected')
+      set_page_configuration(await response.json() as DevicePageConfiguration)
+      toast.success(translate('pagesSaved'))
+    } catch {
+      toast.error(translate('pagesSaveFailed'))
+    } finally {
+      set_page_saving(false)
+    }
   }
 
   const refresh_preview = async (device: DeviceSummary) => {
@@ -178,6 +228,34 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
           </Flexbox>
         )}
       </section>
+
+      {selected_device_id && (
+        <section aria-labelledby="page-control-heading" className="page-control-section">
+          <Flexbox gap={4}>
+            <h2 id="page-control-heading">{translate('pageControl')}</h2>
+            <Text type="secondary">{translate('pageControlDescription')}</Text>
+          </Flexbox>
+          {page_loading ? <Text>{translate('pagesLoading')}</Text> : page_configuration ? (
+            <Block className="page-control-card" variant="outlined">
+              <Flexbox className="page-state" horizontal gap={12} wrap="wrap">
+                <Tag>{translate('confirmedPage', { page: page_configuration.active_page_id })}</Tag>
+                <Tag color={page_configuration.active_page_id === page_configuration.desired_page_id ? 'green' : 'gold'}>{translate('targetPage', { page: page_configuration.desired_page_id })}</Tag>
+                <Text type="secondary">{translate('pageCount', { count: page_configuration.enabled_page_ids.length })}</Text>
+              </Flexbox>
+              <Flexbox className="page-options" gap={8}>
+                {page_configuration.available_pages.map((page) => {
+                  const enabled = page_configuration.enabled_page_ids.includes(page.page_id)
+                  return <Flexbox className="page-option" horizontal align="center" justify="space-between" key={page.page_id} gap={12}>
+                    <Checkbox checked={enabled} disabled={!enabled && page_configuration.enabled_page_ids.length >= 10} onChange={(checked) => toggle_page(page.page_id, checked)}>{page.page_id}</Checkbox>
+                    <Button disabled={!enabled} onClick={() => set_page_configuration({ ...page_configuration, desired_page_id: page.page_id })} size="large" type={page_configuration.desired_page_id === page.page_id ? 'primary' : 'default'}>{translate('showPage')}</Button>
+                  </Flexbox>
+                })}
+              </Flexbox>
+              <Button disabled={page_saving} loading={page_saving} onClick={save_pages} size="large" type="primary">{translate('savePages')}</Button>
+            </Block>
+          ) : <Text type="secondary">{translate('pagesUnavailable')}</Text>}
+        </section>
+      )}
 
       {command_feedback && (
         <Alert

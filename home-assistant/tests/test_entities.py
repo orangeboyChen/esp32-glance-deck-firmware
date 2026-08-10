@@ -19,6 +19,7 @@ class FakeCoordinator:
             "deck-a": {
                 "id": "deck-a", "name": "Desk", "status": "online", "firmware_version": "1.0.0",
                 "wifi_rssi": -57, "active_page_id": "usage", "last_seen_at": "2026-08-10T12:00:00Z",
+                "power_source": "usb_and_battery", "charging": True, "battery_percent": 82, "battery_mv": 3975, "power_updated_at": "2026-08-10T12:15:00Z",
                 "available_firmware_version": "1.1.0", "ota_status": "downloading",
                 "display": {"stale": True, "release_version": 4, "pages": [{"id": "usage"}, {"id": "alerts"}], "source": {"values": {"used": 72, "total": 100, "resets_at": "2026-08-11T00:00:00Z"}}},
             }
@@ -55,6 +56,10 @@ def test_sensor_values_and_page_selection() -> None:
     assert GlanceDeckSensor(coordinator, "deck-a", "release_version", None).native_value == 4
     assert GlanceDeckSensor(coordinator, "deck-a", "usage_percentage", None).native_value == 72.0
     assert GlanceDeckSensor(coordinator, "deck-a", "reset_time", None).native_value.year == 2026
+    assert GlanceDeckSensor(coordinator, "deck-a", "battery_percent", None).native_value == 82
+    assert GlanceDeckSensor(coordinator, "deck-a", "battery_mv", None).native_value == 3975
+    assert GlanceDeckSensor(coordinator, "deck-a", "power_updated_at", None).native_value.minute == 15
+    assert GlanceDeckSensor(coordinator, "deck-a", "battery_percent", None).extra_state_attributes["charging"] is True
     page_select = GlanceDeckPageSelect(coordinator, "deck-a")
     assert page_select.current_option == "usage"
     assert page_select.options == ["usage", "alerts"]

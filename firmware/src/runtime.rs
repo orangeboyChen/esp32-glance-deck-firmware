@@ -181,6 +181,7 @@ impl Device_runtime {
             command_status,
             error_message,
             firmware_version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+            power: None,
         }
     }
 }

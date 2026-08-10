@@ -10,6 +10,11 @@ export type DeviceSummary = {
   firmware_version: string | null
   active_page_id: string
   wifi_rssi: number | null
+  power_source: string | null
+  charging: boolean | null
+  battery_percent: number | null
+  battery_mv: number | null
+  power_updated_at: Date | null
   last_seen_at: Date | null
   preview_svg: string | null
   source_values: Record<string, string | number | null> | null
@@ -28,6 +33,11 @@ export async function list_devices(): Promise<DeviceSummary[]> {
       firmware_version: devices.firmware_version,
       active_page_id: devices.active_page_id,
       wifi_rssi: devices.wifi_rssi,
+      power_source: devices.power_source,
+      charging: devices.charging,
+      battery_percent: devices.battery_percent,
+      battery_mv: devices.battery_mv,
+      power_updated_at: devices.power_updated_at,
       last_seen_at: devices.last_seen_at,
       preview_svg: display_releases.preview_svg,
     })

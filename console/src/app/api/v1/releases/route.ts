@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     })))
     const targets = await transaction.select({ id: devices.id }).from(devices).where(sql`${devices.id} = ANY(${body.data.device_ids})`)
     if (targets.length !== body.data.device_ids.length) throw new Error('device_not_found')
-    await transaction.update(devices).set({ release_id: created.id, active_page_id: body.data.active_page_id }).where(sql`${devices.id} = ANY(${body.data.device_ids})`)
+    await transaction.update(devices).set({ release_id: created.id, desired_page_id: body.data.active_page_id, enabled_page_ids: rendered_pages.map((page) => page.page_id) }).where(sql`${devices.id} = ANY(${body.data.device_ids})`)
     return { created, targets }
   })
   const metadata = {

@@ -29,6 +29,17 @@
     "connectSource": "Connect a source",
     "publishFirstRelease": "Pair a device, then publish its first display release.",
     "language": "Language",
-    "closeNotice": "Dismiss notification"
+    "closeNotice": "Dismiss notification",
+    "pageControl": "Display pages",
+    "pageControlDescription": "Choose up to 10 pages and the next page to show. The confirmed page updates only after the device reports it.",
+    "pagesLoading": "Loading page configuration…",
+    "pagesUnavailable": "Publish a display release before configuring pages.",
+    "confirmedPage": "Confirmed: {page}",
+    "targetPage": "Target: {page}",
+    "pageCount": "{count} enabled",
+    "showPage": "Show page",
+    "savePages": "Save pages",
+    "pagesSaved": "Page configuration sent to the device.",
+    "pagesSaveFailed": "Unable to save page configuration."
   }
 }

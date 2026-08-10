@@ -20,6 +20,9 @@ SENSORS: tuple[tuple[str, str | None], ...] = (
     ("release_version", None),
     ("usage_percentage", None),
     ("reset_time", SensorDeviceClass.TIMESTAMP),
+    ("battery_percent", SensorDeviceClass.BATTERY),
+    ("battery_mv", SensorDeviceClass.VOLTAGE),
+    ("power_updated_at", SensorDeviceClass.TIMESTAMP),
 )
 
 
@@ -44,6 +47,10 @@ class GlanceDeckSensor(GlanceDeckEntity, SensorEntity):
         self._attr_device_class = device_class
         if key == "wifi_rssi":
             self._attr_native_unit_of_measurement = "dBm"
+        if key == "battery_percent":
+            self._attr_native_unit_of_measurement = "%"
+        if key == "battery_mv":
+            self._attr_native_unit_of_measurement = "mV"
 
     @property
     def native_value(self) -> Any:
@@ -60,6 +67,16 @@ class GlanceDeckSensor(GlanceDeckEntity, SensorEntity):
             value = values.get("resets_at")
             return datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else None
         value = self.device.get(self.key)
-        if self.key == "last_seen_at" and isinstance(value, str):
+        if self.key in ("last_seen_at", "power_updated_at") and isinstance(value, str):
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
         return value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        attributes = dict(super().extra_state_attributes)
+        if self.key in ("battery_percent", "battery_mv", "power_updated_at"):
+            attributes.update({
+                "power_source": self.device.get("power_source", "unavailable"),
+                "charging": self.device.get("charging"),
+            })
+        return attributes

@@ -54,5 +54,11 @@ Supported initial actions: `show_page`, `next_page`, `previous_page`,
 ## Device state
 
 ```json
-{"version":1,"page_id":"usage","wifi_rssi":-56,"display_updated_at":"2026-08-09T18:00:00+08:00"}
+{"version":1,"page_id":"usage","wifi_rssi":-56,"display_updated_at":"2026-08-09T18:00:00+08:00","power":{"source":"usb_and_battery","charging":true,"battery_percent":82,"battery_mv":3975}}
 ```
+
+`power.source` is one of `usb`, `battery`, `usb_and_battery`, or
+`unavailable`. Battery percentage and millivolts are optional: the device
+omits them when its installed power hardware cannot measure them. The control
+plane persists the last power report and timestamp; it must not derive a
+percentage from Wi-Fi state or assume that USB implies charging.
