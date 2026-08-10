@@ -38,6 +38,8 @@
     "targetPage": "Target: {page}",
     "pageCount": "{count} enabled",
     "showPage": "Show page",
+    "movePageUp": "Move {page} up",
+    "movePageDown": "Move {page} down",
     "savePages": "Save pages",
     "pagesSaved": "Page configuration sent to the device.",
     "pagesSaveFailed": "Unable to save page configuration."

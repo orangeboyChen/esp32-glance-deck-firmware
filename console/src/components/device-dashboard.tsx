@@ -1,7 +1,7 @@
 'use client'
 
 import { Alert, Block, Button, Checkbox, Empty, Flexbox, Segmented, Tag, Text, Tooltip, toast } from '@lobehub/ui'
-import { CircleAlert, ChevronRight, Monitor, Plus, Radio, RefreshCw, Wifi } from 'lucide-react'
+import { ArrowDown, ArrowUp, CircleAlert, ChevronRight, Monitor, Plus, Radio, RefreshCw, Wifi } from 'lucide-react'
 import { useAtom, useSetAtom } from 'jotai'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
@@ -82,6 +82,16 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
       : page_configuration.enabled_page_ids.filter((item) => item !== page_id)
     if (!enabled_page_ids.length || enabled_page_ids.length > 10) return
     set_page_configuration({ ...page_configuration, enabled_page_ids, desired_page_id: enabled_page_ids.includes(page_configuration.desired_page_id) ? page_configuration.desired_page_id : enabled_page_ids[0] })
+  }
+
+  const move_page = (page_id: string, direction: -1 | 1) => {
+    if (!page_configuration) return
+    const index = page_configuration.enabled_page_ids.indexOf(page_id)
+    const next_index = index + direction
+    if (index < 0 || next_index < 0 || next_index >= page_configuration.enabled_page_ids.length) return
+    const enabled_page_ids = [...page_configuration.enabled_page_ids]
+    ;[enabled_page_ids[index], enabled_page_ids[next_index]] = [enabled_page_ids[next_index], enabled_page_ids[index]]
+    set_page_configuration({ ...page_configuration, enabled_page_ids })
   }
 
   const save_pages = async () => {
@@ -245,9 +255,14 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
               <Flexbox className="page-options" gap={8}>
                 {page_configuration.available_pages.map((page) => {
                   const enabled = page_configuration.enabled_page_ids.includes(page.page_id)
+                  const index = page_configuration.enabled_page_ids.indexOf(page.page_id)
                   return <Flexbox className="page-option" horizontal align="center" justify="space-between" key={page.page_id} gap={12}>
                     <Checkbox checked={enabled} disabled={!enabled && page_configuration.enabled_page_ids.length >= 10} onChange={(checked) => toggle_page(page.page_id, checked)}>{page.page_id}</Checkbox>
-                    <Button disabled={!enabled} onClick={() => set_page_configuration({ ...page_configuration, desired_page_id: page.page_id })} size="large" type={page_configuration.desired_page_id === page.page_id ? 'primary' : 'default'}>{translate('showPage')}</Button>
+                    <Flexbox horizontal gap={6}>
+                      <Button aria-label={translate('movePageUp', { page: page.page_id })} disabled={!enabled || index === 0} icon={ArrowUp} onClick={() => move_page(page.page_id, -1)} size="large" />
+                      <Button aria-label={translate('movePageDown', { page: page.page_id })} disabled={!enabled || index === page_configuration.enabled_page_ids.length - 1} icon={ArrowDown} onClick={() => move_page(page.page_id, 1)} size="large" />
+                      <Button disabled={!enabled} onClick={() => set_page_configuration({ ...page_configuration, desired_page_id: page.page_id })} size="large" type={page_configuration.desired_page_id === page.page_id ? 'primary' : 'default'}>{translate('showPage')}</Button>
+                    </Flexbox>
                   </Flexbox>
                 })}
               </Flexbox>

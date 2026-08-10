@@ -25,6 +25,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ dev
   const [release] = await release_query
   if (!device || !release) return NextResponse.json({ error: 'device_or_release_not_found' }, { status: 404 })
   if (release.board_model !== device.board_model) return NextResponse.json({ error: 'incompatible_release' }, { status: 409 })
+  const has_external_power = device.power_source === 'usb' || device.power_source === 'usb_and_battery'
+  if (!has_external_power && (device.battery_percent === null || device.battery_percent === undefined || device.battery_percent < 30)) {
+    return NextResponse.json({ error: 'power_unsafe_for_ota' }, { status: 409 })
+  }
   const [job] = await db.insert(ota_jobs).values({ device_id, firmware_release_id: release.id, nonce: create_ota_nonce() }).returning()
 
   return NextResponse.json({ job }, { status: 202 })

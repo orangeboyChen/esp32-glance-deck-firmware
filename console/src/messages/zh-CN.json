@@ -38,6 +38,8 @@
     "targetPage": "目标：{page}",
     "pageCount": "已启用 {count} 页",
     "showPage": "设为展示页",
+    "movePageUp": "将 {page} 上移",
+    "movePageDown": "将 {page} 下移",
     "savePages": "保存页面",
     "pagesSaved": "页面配置已下发到设备。",
     "pagesSaveFailed": "无法保存页面配置。"

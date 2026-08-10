@@ -38,6 +38,8 @@
     "targetPage": "対象: {page}",
     "pageCount": "{count} ページを有効化",
     "showPage": "表示ページにする",
+    "movePageUp": "{page} を上へ移動",
+    "movePageDown": "{page} を下へ移動",
     "savePages": "ページを保存",
     "pagesSaved": "ページ設定をデバイスに送信しました。",
     "pagesSaveFailed": "ページ設定を保存できません。"
