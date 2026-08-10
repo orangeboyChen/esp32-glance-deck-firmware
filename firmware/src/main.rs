@@ -6,7 +6,9 @@ use glance_deck_firmware::{
     buttons::{KeyButton, KeyEvent},
     display::{DisplayCache, DisplayRelease},
     enrollment::Enrollment_session,
-    esp_config::{load_control_plane_url, load_device_config, save_device_config},
+    esp_config::{
+        load_control_plane_url, load_device_config, request_wifi_provisioning, save_device_config,
+    },
     esp_enrollment::announce_and_claim,
     esp_mqtt::EspDeviceMqtt,
     esp_ota::{mark_running_image_healthy, EspHttpsOtaTransport, InactiveOtaWriter},
@@ -48,6 +50,7 @@ fn main() -> Result<()> {
     let mut mqtt = EspDeviceMqtt::connect(&config.mqtt, &config.device_id)?;
     let mut key = KeyButton::new()?;
     let mut power = Unavailable_power_provider;
+    let mut maintenance_long_presses = 0_u8;
     let mut current_page_id = cache
         .current_release()?
         .map(|release| release.active_page_id);
@@ -78,23 +81,39 @@ fn main() -> Result<()> {
             std::thread::sleep(std::time::Duration::from_millis(250));
             unsafe { esp_idf_svc::sys::esp_restart() };
         }
-        if matches!(key.poll(), Some(KeyEvent::ShortPress)) {
-            if let Some(release) = cache.current_release()? {
-                let page_id = adjacent_page_id(&release, current_page_id.as_deref(), false)?;
-                if let Err(error) = render_cached_page(
-                    &mut cache,
-                    &mut renderer,
-                    &mut mqtt,
-                    &release,
-                    &page_id,
-                    None,
-                    &mut power,
-                ) {
-                    warn!("local page change retained prior frame: {error:#}");
-                } else {
-                    current_page_id = Some(page_id);
+        match key.poll() {
+            Some(KeyEvent::ShortPress) => {
+                if maintenance_long_presses > 0 {
+                    maintenance_long_presses = 0;
+                    continue;
+                }
+                if let Some(release) = cache.current_release()? {
+                    let page_id = adjacent_page_id(&release, current_page_id.as_deref(), false)?;
+                    if let Err(error) = render_cached_page(
+                        &mut cache,
+                        &mut renderer,
+                        &mut mqtt,
+                        &release,
+                        &page_id,
+                        None,
+                        &mut power,
+                    ) {
+                        warn!("local page change retained prior frame: {error:#}");
+                    } else {
+                        current_page_id = Some(page_id);
+                    }
                 }
             }
+            Some(KeyEvent::LongPress) => {
+                maintenance_long_presses = maintenance_long_presses.saturating_add(1);
+                info!("maintenance long press {maintenance_long_presses}/3");
+                if maintenance_long_presses >= 3 {
+                    request_wifi_provisioning(&partition)?;
+                    info!("Wi-Fi reprovisioning requested; restarting");
+                    unsafe { esp_idf_svc::sys::esp_restart() };
+                }
+            }
+            None => {}
         }
         if let Some(message) = mqtt.next_message() {
             if message.topic == mqtt.topics().ota() {

@@ -17,7 +17,10 @@ use esp_idf_svc::{
 };
 use log::{info, warn};
 
-use crate::{config::WifiConfig, esp_config::save_control_plane_url};
+use crate::{
+    config::WifiConfig,
+    esp_config::{save_control_plane_url, take_wifi_provisioning_request},
+};
 
 const NVS_NAMESPACE: &str = "glance_deck";
 const ACTIVE_WIFI_KEY: &str = "wifi_active";
@@ -51,6 +54,11 @@ pub fn start_network() -> Result<NetworkRuntime> {
         )?,
         event_loop,
     )?;
+
+    if take_wifi_provisioning_request(&partition)? {
+        info!("starting requested Wi-Fi reprovisioning portal");
+        return start_portal(wifi, partition);
+    }
 
     // A portal submission never replaces the known-good configuration. The candidate
     // becomes active only after this boot obtains a DHCP address with it.

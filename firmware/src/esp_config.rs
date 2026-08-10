@@ -6,6 +6,7 @@ use crate::config::DeviceConfig;
 const NVS_NAMESPACE: &str = "glance_deck";
 const DEVICE_CONFIG_KEY: &str = "device_config";
 const CONTROL_PLANE_URL_KEY: &str = "control_plane_url";
+const WIFI_PROVISIONING_REQUEST_KEY: &str = "wifi_reprovision";
 const MAX_DEVICE_CONFIG_BYTES: usize = 768;
 const MAX_CONTROL_PLANE_URL_BYTES: usize = 256;
 
@@ -57,4 +58,22 @@ pub fn save_control_plane_url(store: &mut EspDefaultNvs, url: &str) -> Result<()
     }
     store.set_raw(CONTROL_PLANE_URL_KEY, url.as_bytes())?;
     Ok(())
+}
+
+pub fn request_wifi_provisioning(partition: &EspDefaultNvsPartition) -> Result<()> {
+    let mut nvs = EspDefaultNvs::new(partition.clone(), NVS_NAMESPACE, true)?;
+    nvs.set_raw(WIFI_PROVISIONING_REQUEST_KEY, &[1])?;
+    Ok(())
+}
+
+pub fn take_wifi_provisioning_request(partition: &EspDefaultNvsPartition) -> Result<bool> {
+    let mut nvs = EspDefaultNvs::new(partition.clone(), NVS_NAMESPACE, true)?;
+    let mut value = [0_u8; 1];
+    let requested = nvs
+        .get_raw(WIFI_PROVISIONING_REQUEST_KEY, &mut value)?
+        .is_some_and(|raw| raw == [1]);
+    if requested {
+        nvs.set_raw(WIFI_PROVISIONING_REQUEST_KEY, &[0])?;
+    }
+    Ok(requested)
 }
