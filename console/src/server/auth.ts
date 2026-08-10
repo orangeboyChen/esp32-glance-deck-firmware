@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { db } from './db'
+import { current_administrator } from './session'
 import { api_tokens } from './schema'
 
 export function hash_secret(secret: string) {
@@ -14,6 +15,7 @@ export function create_api_token() {
 }
 
 export async function require_api_scope(request: Request, required_scope: string) {
+  if (await current_administrator()) return true
   const header = request.headers.get('authorization')
   const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined
 

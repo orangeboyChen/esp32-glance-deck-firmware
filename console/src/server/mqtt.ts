@@ -25,6 +25,15 @@ export async function publish_device_command(device_id: string, command: { id: s
   })
 }
 
+export async function publish_device_ota(device_id: string, job: { id: string; nonce: string; version: string; manifest_url: string; image_sha256: string }) {
+  const client = get_client()
+  const topic = `${TOPIC_PREFIX}/${device_id}/ota`
+  const message = JSON.stringify({ job_id: job.id, nonce: job.nonce, version: job.version, manifest_url: job.manifest_url, image_sha256: job.image_sha256 })
+  await new Promise<void>((resolve, reject) => {
+    client.publish(topic, message, { qos: 1 }, (error) => error ? reject(error) : resolve())
+  })
+}
+
 type DeviceStateMessage = {
   version: number
   page_id: string
