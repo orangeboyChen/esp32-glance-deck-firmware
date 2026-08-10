@@ -13,7 +13,7 @@ export function create_pairing_code() {
 }
 
 export function valid_claim_secret(value: string) {
-  return /^[A-Za-z0-9_-]{43}$/.test(value)
+  return /^[a-f0-9]{64}$/.test(value)
 }
 
 export async function announce_enrollment(pairing_code: string, claim_secret: string, board_model: 'ESP32-S3-RLCD-4.2') {

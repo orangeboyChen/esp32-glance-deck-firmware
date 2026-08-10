@@ -5,7 +5,7 @@ import { announce_enrollment } from '@/server/enrollment'
 
 const enrollment_schema = z.object({
   pairing_code: z.string().regex(/^\d{6}$/),
-  claim_secret: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  claim_secret: z.string().regex(/^[a-f0-9]{64}$/),
   board_model: z.literal('ESP32-S3-RLCD-4.2'),
 })
 

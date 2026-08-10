@@ -2,6 +2,7 @@
 pub mod buttons;
 pub mod config;
 pub mod display;
+pub mod enrollment;
 #[cfg(feature = "esp")]
 pub mod esp_config;
 #[cfg(feature = "esp")]
