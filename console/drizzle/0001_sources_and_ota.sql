@@ -47,3 +47,7 @@ CREATE TABLE "ota_jobs" (
   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
   "completed_at" timestamp with time zone
 );
+ALTER TABLE "devices" ADD COLUMN "enrollment_code_hash" varchar(64);
+ALTER TABLE "devices" ADD COLUMN "enrollment_expires_at" timestamp with time zone;
+ALTER TABLE "devices" ADD COLUMN "mqtt_username" varchar(128);
+ALTER TABLE "devices" ADD COLUMN "mqtt_password_ciphertext" text;

@@ -84,6 +84,10 @@ export const devices = pgTable('devices', {
   active_page_id: varchar('active_page_id', { length: 64 }).default('system').notNull(),
   release_id: uuid('release_id').references(() => display_releases.id),
   last_seen_at: timestamp('last_seen_at', { withTimezone: true }),
+  enrollment_code_hash: varchar('enrollment_code_hash', { length: 64 }),
+  enrollment_expires_at: timestamp('enrollment_expires_at', { withTimezone: true }),
+  mqtt_username: varchar('mqtt_username', { length: 128 }),
+  mqtt_password_ciphertext: text('mqtt_password_ciphertext'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
