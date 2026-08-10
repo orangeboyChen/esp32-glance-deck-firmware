@@ -27,6 +27,13 @@ class GlanceDeckCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         try:
             devices = await self.api.async_get_devices()
+            get_alerts = getattr(self.api, "async_get_alerts", None)
+            alerts = await get_alerts() if get_alerts is not None else []
+            active_alerts: dict[str, list[dict[str, Any]]] = {}
+            for alert in alerts:
+                for device_id in alert.get("device_ids", []):
+                    if isinstance(device_id, str):
+                        active_alerts.setdefault(device_id, []).append(alert)
             result: dict[str, dict[str, Any]] = {}
             for device in devices:
                 device_id = device.get("id")
@@ -35,6 +42,8 @@ class GlanceDeckCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 display = await self.api.async_get_display(device_id)
                 pages = await self.api.async_get_device_pages(device_id)
                 result[device_id] = {**device, "display": display, "page_configuration": pages}
+                if active_alerts.get(device_id):
+                    result[device_id]["active_alerts"] = active_alerts[device_id]
             return result
         except GlanceDeckApiError as error:
             raise UpdateFailed(str(error)) from error

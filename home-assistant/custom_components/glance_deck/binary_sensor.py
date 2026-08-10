@@ -43,5 +43,5 @@ class GlanceDeckStatusBinarySensor(GlanceDeckEntity, BinarySensorEntity):
             return bool(self.device.get("display", {}).get("stale", False))
         if self.kind == "alert":
             display = self.device.get("display", {})
-            return bool(self.device.get("active_alert") or self.device.get("alert_active") or (isinstance(display, dict) and display.get("active_alert")))
+            return bool(self.device.get("active_alerts") or self.device.get("active_alert") or self.device.get("alert_active") or (isinstance(display, dict) and display.get("active_alert")))
         return self.device.get("ota_status") in {"queued", "downloading", "verifying", "rebooting"}

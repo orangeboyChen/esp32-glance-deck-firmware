@@ -8,6 +8,7 @@ export const device_status = pgEnum('device_status', ['enrolling', 'online', 'of
 export const command_status = pgEnum('command_status', ['queued', 'sent', 'confirmed', 'failed'])
 export const source_status = pgEnum('source_status', ['active', 'paused', 'error'])
 export const ota_job_status = pgEnum('ota_job_status', ['queued', 'sent', 'downloading', 'verifying', 'rebooting', 'healthy', 'rolled_back', 'failed', 'cancelled'])
+export const alert_operator = pgEnum('alert_operator', ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'contains'])
 
 export const administrators = pgTable('administrators', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -96,6 +97,26 @@ export const source_snapshots = pgTable('source_snapshots', {
   values: jsonb('values').$type<Record<string, string | number | null>>().notNull(),
   response_preview: text('response_preview'),
   fetched_at: timestamp('fetched_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const alert_rules = pgTable('alert_rules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 128 }).notNull(),
+  source_id: uuid('source_id').references(() => usage_sources.id, { onDelete: 'cascade' }).notNull(),
+  field: varchar('field', { length: 32 }).notNull(),
+  operator: alert_operator('operator').notNull(),
+  threshold: text('threshold').notNull(),
+  severity: varchar('severity', { length: 16 }).default('warning').notNull(),
+  message: varchar('message', { length: 256 }).notNull(),
+  device_ids: jsonb('device_ids').$type<string[]>().notNull(),
+  page_ids: jsonb('page_ids').$type<string[]>().notNull(),
+  enabled: boolean('enabled').default(true).notNull(),
+  test_only: boolean('test_only').default(false).notNull(),
+  active: boolean('active').default(false).notNull(),
+  last_value: jsonb('last_value'),
+  last_evaluated_at: timestamp('last_evaluated_at', { withTimezone: true }),
+  last_triggered_at: timestamp('last_triggered_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
 export const display_bindings = pgTable('display_bindings', {

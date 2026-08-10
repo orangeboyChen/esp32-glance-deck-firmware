@@ -1,7 +1,7 @@
 'use client'
 
 import { Alert, Block, Button, Checkbox, Empty, Flexbox, Segmented, Tag, Text, Tooltip, toast } from '@lobehub/ui'
-import { ArrowDown, ArrowUp, CircleAlert, ChevronRight, Cpu, Database, Monitor, Plus, Radio, RefreshCw, Settings, Wifi } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bell, CircleAlert, ChevronRight, Cpu, Database, Monitor, PanelsTopLeft, Plus, Radio, RefreshCw, Settings, Wifi } from 'lucide-react'
 import { useAtom, useSetAtom } from 'jotai'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
@@ -20,6 +20,7 @@ import type { DeviceSummary } from '@/server/devices'
 
 type DeviceDashboardProps = {
   devices: DeviceSummary[]
+  summary: { active_alerts: number; source_updates_today: number }
 }
 
 type DevicePageConfiguration = {
@@ -36,7 +37,7 @@ function status_color(status: DeviceSummary['status']) {
   return 'gold'
 }
 
-export function DeviceDashboard({ devices }: DeviceDashboardProps) {
+export function DeviceDashboard({ devices, summary }: DeviceDashboardProps) {
   const [selected_device_id, set_selected_device_id] = useAtom(selected_device_id_atom)
   const [selected_preview_id, set_selected_preview_id] = useAtom(selected_preview_id_atom)
   const [command_feedback, set_command_feedback] = useAtom(command_feedback_atom)
@@ -137,6 +138,8 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
           <Segmented aria-label={translate('language')} options={[{ label: 'EN', value: 'en' }, { label: '中文', value: 'zh-CN' }, { label: '日本語', value: 'ja' }]} onChange={(value) => change_locale(value as 'en' | 'zh-CN' | 'ja')} value={locale} />
           <Button icon={Database} onClick={() => router.push('/sources')} size="large">{translate('sources')}</Button>
           <Button icon={Cpu} onClick={() => router.push('/firmware')} size="large">{translate('firmware')}</Button>
+          <Button icon={PanelsTopLeft} onClick={() => router.push('/displays')} size="large">{translate('displays')}</Button>
+          <Button icon={Bell} onClick={() => router.push('/alerts')} size="large">{translate('alerts')}</Button>
           <Button icon={Settings} onClick={() => router.push('/settings')} size="large">{translate('settings')}</Button>
           <Button aria-label={translate('addDevice')} icon={Plus} onClick={() => set_enrollment_open(true)} size="large" type="primary">
             {translate('addDevice')}
@@ -152,12 +155,12 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
         </Block>
         <Block className="summary-item" variant="outlined">
           <CircleAlert aria-hidden className="summary-icon" />
-          <strong>0</strong>
+          <strong>{summary.active_alerts}</strong>
           <Text type="secondary">{translate('activeAlerts')}</Text>
         </Block>
         <Block className="summary-item" variant="outlined">
           <RefreshCw aria-hidden className="summary-icon" />
-          <strong>—</strong>
+          <strong>{summary.source_updates_today}</strong>
           <Text type="secondary">{translate('sourceUpdatesToday')}</Text>
         </Block>
       </section>

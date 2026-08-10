@@ -6,6 +6,7 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from './db'
 import { decrypt_secret } from './secrets'
 import { publish_source_changes } from './source-publisher'
+import { evaluate_alert_rules } from './alerts'
 import { source_snapshots, usage_sources } from './schema'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -83,6 +84,7 @@ export async function refresh_usage_source(source_id: string) {
       await transaction.update(usage_sources).set({ status: 'active', last_success_at: new Date(), last_error: null }).where(eq(usage_sources.id, source_id))
     })
     if (changed) await publish_source_changes(source_id, values)
+    await evaluate_alert_rules(source_id, values)
     return values
   } catch (error) {
     const message = error instanceof Error ? error.message : 'source_refresh_failed'

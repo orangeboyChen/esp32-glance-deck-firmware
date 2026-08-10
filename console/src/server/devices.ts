@@ -1,7 +1,7 @@
-import { desc, eq } from 'drizzle-orm'
+import { count, desc, eq, gte } from 'drizzle-orm'
 
 import { db } from './db'
-import { devices, display_releases, ota_jobs, source_snapshots, usage_sources } from './schema'
+import { alert_rules, devices, display_releases, ota_jobs, source_snapshots, usage_sources } from './schema'
 
 export type DeviceSummary = {
   id: string
@@ -53,4 +53,15 @@ export async function list_devices(): Promise<DeviceSummary[]> {
     const [ota_job] = await database.select({ status: ota_jobs.status }).from(ota_jobs).where(eq(ota_jobs.device_id, row.id)).orderBy(desc(ota_jobs.created_at)).limit(1)
     return { ...row, source_values: snapshot?.values ?? null, ota_status: ota_job?.status ?? null }
   }))
+}
+
+export async function dashboard_summary() {
+  if (!db) return { active_alerts: 0, source_updates_today: 0 }
+  const start_of_day = new Date()
+  start_of_day.setHours(0, 0, 0, 0)
+  const [[active], [updates]] = await Promise.all([
+    db.select({ value: count() }).from(alert_rules).where(eq(alert_rules.active, true)),
+    db.select({ value: count() }).from(source_snapshots).where(gte(source_snapshots.fetched_at, start_of_day)),
+  ])
+  return { active_alerts: active?.value ?? 0, source_updates_today: updates?.value ?? 0 }
 }

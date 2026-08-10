@@ -63,9 +63,16 @@ h3 { font-size: clamp(20px, 2.5vw, 26px); font-weight: 650; letter-spacing: -.02
 .source-row { align-items: center; display: flex; gap: 20px; justify-content: space-between; padding: 18px 20px; }
 .source-form { display: grid; gap: 9px; max-width: 680px; }
 .source-form label { font-size: 14px; font-weight: 600; margin-top: 8px; }
+.source-form select { background: var(--ant-color-bg-container, #fff); border: 1px solid rgb(110 110 115 / 35%); border-radius: 10px; min-height: 44px; padding: 0 12px; }
+.alert-targets { border: 1px solid rgb(110 110 115 / 20%); border-radius: 12px; display: grid; gap: 10px; margin: 8px 0 0; padding: 14px; }
+.alert-targets legend { font-size: 14px; font-weight: 600; padding: 0 6px; }
+.alert-rule-row { align-items: center; display: flex; gap: 20px; justify-content: space-between; padding: 18px 20px; }
 .release-card { display: grid; gap: 14px; padding: 22px; }
 .compatible-devices { display: grid; gap: 8px; margin-top: 6px; }
 .firmware-device-row { border-top: 1px solid rgb(110 110 115 / 20%); min-height: 66px; padding-top: 10px; }
+.display-editor-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); margin-top: 48px; }
+.display-editor, .display-preview-card { display: grid; gap: 16px; padding: 22px; }
+.display-editor-preview { aspect-ratio: 4 / 3; background: #f2f4ed; border: 1px solid rgb(38 50 42 / 28%); display: block; max-width: 400px; width: 100%; }
 .settings-shell { max-width: 1060px; }
 .settings-alert { margin-top: 32px; }
 .settings-sections { margin-top: 48px; }
@@ -86,3 +93,4 @@ h3 { font-size: clamp(20px, 2.5vw, 26px); font-weight: 650; letter-spacing: -.02
 @media (max-width: 760px) { .dashboard-header { flex-direction: column; } .header-actions { justify-content: flex-start; } .summary-grid { margin: 32px 0 44px; } .device-card { grid-template-columns: minmax(0, 1fr); } .preview-select { max-width: 250px; } }
 @media (max-width: 520px) { .summary-grid { grid-template-columns: 1fr; } .summary-item { min-height: 100px; } .section-header { align-items: stretch; flex-direction: column; } .header-actions { align-items: stretch; flex-direction: column; width: 100%; } .header-actions > * { width: 100%; } }
 @media (max-width: 520px) { .scope-list { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .display-editor-grid { grid-template-columns: 1fr; } }

@@ -36,6 +36,13 @@ class GlanceDeckApiClient:
             raise GlanceDeckApiError("The devices response is invalid")
         return [device for device in devices if isinstance(device, dict)]
 
+    async def async_get_alerts(self) -> list[dict[str, Any]]:
+        response = await self._async_request("GET", "/api/v1/alerts")
+        alerts = response.get("active") if isinstance(response, dict) else None
+        if not isinstance(alerts, list):
+            return []
+        return [alert for alert in alerts if isinstance(alert, dict)]
+
     async def async_get_display(self, device_id: str) -> dict[str, Any]:
         response = await self._async_request("GET", f"/api/v1/displays/{device_id}", allow_not_found=True)
         return response if isinstance(response, dict) else {}
