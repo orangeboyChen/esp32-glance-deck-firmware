@@ -11,6 +11,7 @@ const update = mock(() => ({ set }))
 mock.module('./db', () => ({ db: { update } }))
 
 const { consume_device_state, consume_ota_state } = await import('./mqtt')
+const { consume_ota_check } = await import('./mqtt')
 
 describe('MQTT state consumers', () => {
   test('persists valid device state and command confirmation', async () => {
@@ -46,5 +47,13 @@ describe('MQTT state consumers', () => {
     await consume_ota_state('glance_deck/desk-1/ota/state', Buffer.from('bad JSON'))
     await consume_ota_state('glance_deck/desk-1/ota/state', Buffer.from(JSON.stringify({ job_id: 'job-1', phase: 'missing' })))
     expect(updates).toHaveLength(0)
+  })
+
+  test('ignores invalid local OTA check requests', async () => {
+    const database = { select: () => ({ from: () => ({ where: () => ({ limit: async () => [] }) }) }) }
+    const client = { publish: mock((_topic: string, _payload: string, _options: unknown, callback: (error?: Error) => void) => callback()) }
+    await consume_ota_check('glance_deck/invalid!/ota/check', Buffer.from('{}'), database as never, client as never)
+    await consume_ota_check('glance_deck/desk-1/ota/check', Buffer.from('bad'), database as never, client as never)
+    expect(client.publish).not.toHaveBeenCalled()
   })
 })

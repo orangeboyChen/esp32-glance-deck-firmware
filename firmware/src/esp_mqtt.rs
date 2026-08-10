@@ -37,6 +37,7 @@ impl EspDeviceMqtt {
         let release_topic = topics.release();
         let command_topic = topics.command();
         let ota_topic = topics.ota();
+        let ota_check_state_topic = topics.ota_check_state();
         let client = EspMqttClient::new_cb(
             &config.broker_url,
             &MqttClientConfiguration {
@@ -59,7 +60,10 @@ impl EspDeviceMqtt {
                     return;
                 };
                 if data.len() > MAX_MQTT_PAYLOAD_BYTES
-                    || (topic != release_topic && topic != command_topic && topic != ota_topic)
+                    || (topic != release_topic
+                        && topic != command_topic
+                        && topic != ota_topic
+                        && topic != ota_check_state_topic)
                 {
                     return;
                 }
@@ -85,6 +89,8 @@ impl EspDeviceMqtt {
             .subscribe(&mqtt.topics.command(), QoS::AtLeastOnce)?;
         mqtt.client
             .subscribe(&mqtt.topics.ota(), QoS::AtLeastOnce)?;
+        mqtt.client
+            .subscribe(&mqtt.topics.ota_check_state(), QoS::AtLeastOnce)?;
         mqtt.client.publish(
             &mqtt.topics.availability(),
             QoS::AtLeastOnce,
@@ -100,6 +106,17 @@ impl EspDeviceMqtt {
 
     pub fn topics(&self) -> &DeviceTopics {
         &self.topics
+    }
+
+    pub fn request_ota_check(&mut self) -> Result<(), esp_idf_svc::sys::EspError> {
+        self.client
+            .publish(
+                &self.topics.ota_check(),
+                QoS::AtLeastOnce,
+                false,
+                br#"{"version":1}"#,
+            )
+            .map(|_| ())
     }
 }
 

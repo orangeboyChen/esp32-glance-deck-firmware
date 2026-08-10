@@ -13,7 +13,9 @@ debounces it before acting.
 | --- | --- | --- |
 | Short press | Advance one enabled cached page in the configured order. | The selected cached frame flushes first. A bottom page indicator appears for 2 seconds. Publish state only after the flush succeeds. |
 | First long press | Enter the local maintenance overview. | State is visible as text, an icon, and an optional audio cue. It never changes Wi-Fi, credentials, or firmware by itself. |
-| Second long press in maintenance | Present `Start Wi-Fi setup?` confirmation. | The screen presents the primary action and a visible `Cancel` action. A short press cancels and returns to the last page. |
+| Short press in the maintenance overview | Ask the control plane for a signed firmware candidate without changing the running image. | The screen shows `Checking update`, then `Update ready`, `Up to date`, or a concrete failure. |
+| Long press after `Update ready` | Confirm and execute the candidate OTA. | The screen shows the same signed download/verify/reboot phases as remote OTA. A short press cancels the candidate. |
+| Second long press in maintenance | Present `Start Wi-Fi setup?` confirmation. | The screen presents the primary action and a visible `Cancel` action. |
 | Third long press at confirmation | Start temporary Wi-Fi setup. | Show the temporary AP name and password before the portal starts. A short press still cancels and restores the last release page. |
 
 The normal page order is `usage`, `alerts` (when an alert is active), `home`,

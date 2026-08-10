@@ -7,7 +7,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 export const device_status = pgEnum('device_status', ['enrolling', 'online', 'offline', 'error'])
 export const command_status = pgEnum('command_status', ['queued', 'sent', 'confirmed', 'failed'])
 export const source_status = pgEnum('source_status', ['active', 'paused', 'error'])
-export const ota_job_status = pgEnum('ota_job_status', ['queued', 'sent', 'downloading', 'verifying', 'rebooting', 'healthy', 'rolled_back', 'failed', 'cancelled'])
+export const ota_job_status = pgEnum('ota_job_status', ['awaiting_confirmation', 'queued', 'sent', 'downloading', 'verifying', 'rebooting', 'healthy', 'rolled_back', 'failed', 'cancelled'])
 export const alert_operator = pgEnum('alert_operator', ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'contains'])
 
 export const administrators = pgTable('administrators', {

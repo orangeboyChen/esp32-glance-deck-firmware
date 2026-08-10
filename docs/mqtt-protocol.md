@@ -11,6 +11,8 @@ All topics use `glance_deck/<device_id>/`.
 | `availability` | Device to control plane | Yes | `online` or `offline` |
 | `ota` | Control plane to device | No | Signed remote OTA job |
 | `ota/state` | Device to control plane | Yes | OTA progress and result |
+| `ota/check` | Device to control plane | No | Local maintenance update check request |
+| `ota/check/state` | Control plane to device | No | Signed candidate metadata or check result |
 
 ## Display release
 
@@ -62,3 +64,12 @@ Supported initial actions: `show_page`, `next_page`, `previous_page`,
 omits them when its installed power hardware cannot measure them. The control
 plane persists the last power report and timestamp; it must not derive a
 percentage from Wi-Fi state or assume that USB implies charging.
+
+## Local OTA check
+
+The maintenance page publishes `{"version":1}` to `ota/check`. The control
+plane compares the latest verified stable release for the device board and
+returns `ota/check/state`. An `available` response contains only HTTPS manifest
+metadata and the image hash; the device shows the candidate and does not write
+an OTA partition until the user confirms locally. The same signature, hash,
+power, rollback, and health checks used by remote OTA then apply.

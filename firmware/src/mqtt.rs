@@ -36,6 +36,12 @@ impl DeviceTopics {
     pub fn ota_state(&self) -> String {
         format!("{}/ota/state", self.root)
     }
+    pub fn ota_check(&self) -> String {
+        format!("{}/ota/check", self.root)
+    }
+    pub fn ota_check_state(&self) -> String {
+        format!("{}/ota/check/state", self.root)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -157,6 +163,32 @@ pub struct Ota_command {
     pub image_sha256: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum Ota_check_status {
+    Available,
+    Up_to_date,
+    Failed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Ota_check_state {
+    pub status: Ota_check_status,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifest_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
 impl Ota_command {
     pub fn validate(&self) -> Result<(), &'static str> {
         if self.job_id.is_empty()
@@ -230,6 +262,21 @@ mod tests {
             image_sha256: "a".repeat(64),
         };
         assert_eq!(command.validate(), Ok(()));
+    }
+
+    #[test]
+    fn parses_a_complete_local_ota_candidate() {
+        let state: Ota_check_state = serde_json::from_str(&format!(
+            r#"{{"status":"available","job_id":"job-1","nonce":"nonce","version":"1.2.0","manifest_url":"https://example.test/manifest.json","image_sha256":"{}"}}"#,
+            "a".repeat(64),
+        ))
+        .unwrap();
+        assert_eq!(state.status, Ota_check_status::Available);
+        assert_eq!(state.job_id.as_deref(), Some("job-1"));
+        assert_eq!(
+            state.image_sha256.as_deref(),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        );
     }
 
     #[test]

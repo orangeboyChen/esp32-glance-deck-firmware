@@ -16,8 +16,8 @@ use glance_deck_firmware::{
     flash_cache::FlashDisplayCache,
     local_screen::maintenance_frame,
     mqtt::{
-        DeviceState, Device_command, Device_command_action, Mqtt_client, Ota_command, Ota_phase,
-        Ota_state,
+        DeviceState, Device_command, Device_command_action, Mqtt_client, Ota_check_state,
+        Ota_check_status, Ota_command, Ota_phase, Ota_state,
     },
     ota::Ota_policy,
     ota_runtime::{OtaProcessor, OtaReporter},
@@ -53,6 +53,7 @@ fn main() -> Result<()> {
     let mut power = Unavailable_power_provider;
     let mut maintenance_long_presses = 0_u8;
     let mut last_ota_nonce: Option<String> = None;
+    let mut local_ota_candidate: Option<Ota_command> = None;
     let mut current_page_id = cache
         .current_release()?
         .map(|release| release.active_page_id);
@@ -91,6 +92,13 @@ fn main() -> Result<()> {
         match key.poll() {
             Some(KeyEvent::ShortPress) => {
                 if maintenance_long_presses > 0 {
+                    if maintenance_long_presses == 1 {
+                        if let Err(error) = mqtt.request_ota_check() {
+                            warn!("local OTA check request failed: {error}");
+                        } else if let Ok(frame) = maintenance_frame("CHECKING UPDATE") {
+                            let _ = renderer.flush_frame(&frame);
+                        }
+                    }
                     maintenance_long_presses = 0;
                     continue;
                 }
@@ -112,6 +120,17 @@ fn main() -> Result<()> {
                 }
             }
             Some(KeyEvent::LongPress) => {
+                if let Some(candidate) = local_ota_candidate.take() {
+                    if let Err(error) = handle_ota(
+                        &serde_json::to_vec(&candidate)?,
+                        &mut mqtt,
+                        &mut power,
+                        &mut last_ota_nonce,
+                    ) {
+                        warn!("local OTA failed: {error:#}");
+                    }
+                    continue;
+                }
                 maintenance_long_presses = maintenance_long_presses.saturating_add(1);
                 info!("maintenance long press {maintenance_long_presses}/3");
                 let message = match maintenance_long_presses {
@@ -138,6 +157,51 @@ fn main() -> Result<()> {
                     handle_ota(&message.payload, &mut mqtt, &mut power, &mut last_ota_nonce)
                 {
                     warn!("OTA job failed: {error:#}");
+                }
+            } else if message.topic == mqtt.topics().ota_check_state() {
+                match serde_json::from_slice::<Ota_check_state>(&message.payload) {
+                    Ok(state) => match state.status {
+                        Ota_check_status::Available => {
+                            if let (
+                                Some(job_id),
+                                Some(nonce),
+                                Some(version),
+                                Some(manifest_url),
+                                Some(image_sha256),
+                            ) = (
+                                state.job_id,
+                                state.nonce,
+                                state.version,
+                                state.manifest_url,
+                                state.image_sha256,
+                            ) {
+                                let candidate = Ota_command {
+                                    job_id,
+                                    nonce,
+                                    version,
+                                    manifest_url,
+                                    image_sha256,
+                                };
+                                if candidate.validate().is_ok() {
+                                    local_ota_candidate = Some(candidate);
+                                    if let Ok(frame) = maintenance_frame("UPDATE READY") {
+                                        let _ = renderer.flush_frame(&frame);
+                                    }
+                                }
+                            }
+                        }
+                        Ota_check_status::Up_to_date => {
+                            if let Ok(frame) = maintenance_frame("UP TO DATE") {
+                                let _ = renderer.flush_frame(&frame);
+                            }
+                        }
+                        Ota_check_status::Failed => {
+                            if let Ok(frame) = maintenance_frame("UPDATE CHECK FAILED") {
+                                let _ = renderer.flush_frame(&frame);
+                            }
+                        }
+                    },
+                    Err(error) => warn!("rejected OTA check state: {error}"),
                 }
             } else if message.topic == mqtt.topics().release() {
                 match serde_json::from_slice::<DisplayRelease>(&message.payload) {

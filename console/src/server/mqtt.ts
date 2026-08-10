@@ -1,9 +1,11 @@
+import { randomBytes } from 'node:crypto'
+
 import { connect, type MqttClient } from 'mqtt'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 
 import { db } from './db'
 import { signed_release_page_image_url } from './assets'
-import { device_commands, devices, ota_jobs } from './schema'
+import { device_commands, devices, firmware_releases, ota_jobs } from './schema'
 
 let mqtt_client: MqttClient | undefined
 let state_consumer_started = false
@@ -65,6 +67,10 @@ export async function publish_device_ota(device_id: string, job: { id: string; n
   await new Promise<void>((resolve, reject) => {
     client.publish(topic, message, { qos: 1 }, (error) => error ? reject(error) : resolve())
   })
+}
+
+export async function publish_device_ota_check_state(device_id: string, state: { status: 'available' | 'up_to_date' | 'failed'; job_id?: string; nonce?: string; version?: string; manifest_url?: string; image_sha256?: string; error_message?: string }, client = get_client()) {
+  await new Promise<void>((resolve, reject) => client.publish(`${TOPIC_PREFIX}/${device_id}/ota/check/state`, JSON.stringify(state), { qos: 1 }, (error) => error ? reject(error) : resolve()))
 }
 
 export type ReleasePageMetadata = {
@@ -187,13 +193,34 @@ export async function consume_ota_state(topic: string, payload: Buffer) {
   }).where(and(eq(ota_jobs.id, state.job_id), eq(ota_jobs.device_id, match[1])))
 }
 
+export async function consume_ota_check(topic: string, payload: Buffer, database = db, client?: MqttClient) {
+  const match = new RegExp(`^${TOPIC_PREFIX}/([a-z0-9-]{1,64})/ota/check$`).exec(topic)
+  if (!match || !database || payload.length > MAX_DEVICE_MQTT_PAYLOAD_BYTES) return
+  let request: unknown
+  try { request = JSON.parse(payload.toString('utf8')) } catch { return }
+  if (!request || typeof request !== 'object' || (request as Record<string, unknown>).version !== 1) return
+  const device_id = match[1]
+  const [device] = await database.select({ board_model: devices.board_model, firmware_version: devices.firmware_version }).from(devices).where(eq(devices.id, device_id)).limit(1)
+  const [release] = device ? await database.select().from(firmware_releases).where(and(eq(firmware_releases.board_model, device.board_model), eq(firmware_releases.channel, 'stable'))).orderBy(desc(firmware_releases.created_at)).limit(1) : []
+  if (!device || !release) {
+    await publish_device_ota_check_state(device_id, { status: 'failed', error_message: 'no_compatible_release' }, client)
+    return
+  }
+  if (device.firmware_version === release.version) {
+    await publish_device_ota_check_state(device_id, { status: 'up_to_date', version: release.version }, client)
+    return
+  }
+  const [job] = await database.insert(ota_jobs).values({ device_id, firmware_release_id: release.id, nonce: randomBytes(24).toString('base64url'), status: 'awaiting_confirmation' }).returning({ id: ota_jobs.id, nonce: ota_jobs.nonce })
+  await publish_device_ota_check_state(device_id, { status: 'available', job_id: job.id, nonce: job.nonce, version: release.version, manifest_url: release.manifest_url, image_sha256: release.image_sha256 }, client)
+}
+
 export function start_device_state_consumer() {
   if (state_consumer_started) return
   const client = get_client()
   state_consumer_started = true
-  client.subscribe([`${TOPIC_PREFIX}/+/state`, `${TOPIC_PREFIX}/+/ota/state`], { qos: 1 })
+  client.subscribe([`${TOPIC_PREFIX}/+/state`, `${TOPIC_PREFIX}/+/ota/state`, `${TOPIC_PREFIX}/+/ota/check`], { qos: 1 })
   client.on('message', (topic, payload) => {
-    const handler = topic.endsWith('/ota/state') ? consume_ota_state : consume_device_state
+    const handler = topic.endsWith('/ota/state') ? consume_ota_state : topic.endsWith('/ota/check') ? consume_ota_check : consume_device_state
     void handler(topic, payload).catch((error) => console.error('device MQTT state consume failed', error))
   })
 }

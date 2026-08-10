@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -24,6 +24,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ jo
     return NextResponse.json({ job: rollback }, { status: 202 })
   }
   const [job] = await db.update(ota_jobs).set({ status: 'cancelled', completed_at: new Date(), error_message: 'cancelled_by_operator' })
-    .where(and(eq(ota_jobs.id, job_id), eq(ota_jobs.status, 'queued'))).returning()
+    .where(and(eq(ota_jobs.id, job_id), inArray(ota_jobs.status, ['queued', 'awaiting_confirmation']))).returning()
   return job ? NextResponse.json({ job }) : NextResponse.json({ error: 'job_not_cancellable' }, { status: 409 })
 }
