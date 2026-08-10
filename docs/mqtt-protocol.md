@@ -6,7 +6,7 @@ All topics use `glance_deck/<device_id>/`.
 | Topic suffix | Direction | Retained | Purpose |
 | --- | --- | --- | --- |
 | `release` | Control plane to device | Yes | Current immutable display page directory |
-| `command` | HA to device | No | Immediate action |
+| `command` | Control plane to device | No | Immediate action requested by console or HA |
 | `state` | Device to control plane | Yes | Connectivity and UI state |
 | `availability` | Device to control plane | Yes | `online` or `offline` |
 | `ota` | Control plane to device | No | Signed remote OTA job |
@@ -49,7 +49,7 @@ verified frame when the requested target is unavailable.
 ```
 
 Supported initial actions: `show_page`, `next_page`, `previous_page`,
-`set_rotation`, and `refresh`.
+`set_rotation`, `refresh_release`, and `enter_maintenance`.
 
 ## Device state
 

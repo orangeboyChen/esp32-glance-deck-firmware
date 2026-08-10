@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 use crate::display::hex_lower;
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Ota_manifest {
     pub board_model: String,

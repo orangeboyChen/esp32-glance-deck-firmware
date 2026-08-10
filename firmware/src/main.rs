@@ -9,9 +9,15 @@ use glance_deck_firmware::{
     esp_config::{load_control_plane_url, load_device_config, save_device_config},
     esp_enrollment::announce_and_claim,
     esp_mqtt::EspDeviceMqtt,
+    esp_ota::{mark_running_image_healthy, EspHttpsOtaTransport, InactiveOtaWriter},
     esp_storage::{DisplayStorage, HttpsPageDownloader},
     flash_cache::FlashDisplayCache,
-    mqtt::{DeviceState, Device_command, Device_command_action},
+    mqtt::{
+        DeviceState, Device_command, Device_command_action, Mqtt_client, Ota_command, Ota_phase,
+        Ota_state,
+    },
+    ota::Ota_policy,
+    ota_runtime::{OtaProcessor, OtaReporter},
     power::{Power_provider, Unavailable_power_provider},
     provisioning_esp::{load_active_wifi_config, restart_requested, start_network, NetworkRuntime},
     release_sync::{synchronize_page, synchronize_release},
@@ -45,6 +51,25 @@ fn main() -> Result<()> {
     let mut current_page_id = cache
         .current_release()?
         .map(|release| release.active_page_id);
+    if let Some(release) = cache.current_release()? {
+        let page_id = current_page_id
+            .as_deref()
+            .unwrap_or(&release.active_page_id)
+            .to_owned();
+        let page = release
+            .page(&page_id)
+            .context("cached release active page missing")?;
+        let frame = cache
+            .read_page(&page.image_sha256)?
+            .context("cached release active frame missing")?;
+        page.validate_image(&frame)?;
+        renderer.flush_frame(&frame)?;
+        if let Err(error) = mark_running_image_healthy() {
+            warn!("OTA boot health confirmation unavailable: {error:#}");
+        }
+    } else {
+        info!("no cached display release; skipping OTA health confirmation");
+    }
     info!("device runtime connected as {}", config.device_id);
 
     loop {
@@ -72,7 +97,11 @@ fn main() -> Result<()> {
             }
         }
         if let Some(message) = mqtt.next_message() {
-            if message.topic == mqtt.topics().release() {
+            if message.topic == mqtt.topics().ota() {
+                if let Err(error) = handle_ota(&message.payload, &mut mqtt, &mut power) {
+                    warn!("OTA job failed: {error:#}");
+                }
+            } else if message.topic == mqtt.topics().release() {
                 match serde_json::from_slice::<DisplayRelease>(&message.payload) {
                     Ok(release) => {
                         let active_page_id = release.active_page_id.clone();
@@ -176,6 +205,88 @@ fn main() -> Result<()> {
         }
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
+}
+
+struct MqttOtaReporter<'a> {
+    mqtt: &'a mut EspDeviceMqtt,
+}
+
+impl OtaReporter for MqttOtaReporter<'_> {
+    fn report(&mut self, state: Ota_state) {
+        let Ok(payload) = serde_json::to_vec(&state) else {
+            return;
+        };
+        let topic = self.mqtt.topics().ota_state();
+        if let Err(error) = Mqtt_client::publish(self.mqtt, &topic, &payload, true) {
+            warn!("failed to publish OTA state: {error}");
+        }
+    }
+}
+
+fn handle_ota(
+    payload: &[u8],
+    mqtt: &mut EspDeviceMqtt,
+    power: &mut impl glance_deck_firmware::power::Power_provider,
+) -> Result<()> {
+    let command: Ota_command =
+        serde_json::from_slice(payload).context("ota_command_json_invalid")?;
+    let mut reporter = MqttOtaReporter { mqtt };
+    let measurement = power.sample();
+    let external_power = matches!(
+        measurement.source,
+        glance_deck_firmware::mqtt::Power_source::Usb
+            | glance_deck_firmware::mqtt::Power_source::Usb_and_battery
+    );
+    let mut policy = Ota_policy::new(external_power, measurement.battery_percent);
+    let public_key = match firmware_public_key() {
+        Some(key) => key,
+        None => {
+            let error = "firmware_public_key_missing";
+            reporter.report(Ota_state {
+                job_id: command.job_id,
+                phase: Ota_phase::Failed,
+                error_message: Some(error.to_owned()),
+            });
+            return Err(anyhow::anyhow!(error));
+        }
+    };
+    let processor = OtaProcessor {
+        board_model: "ESP32-S3-RLCD-4.2".to_owned(),
+        public_key,
+    };
+    let mut transport = EspHttpsOtaTransport::new();
+    let writer = match InactiveOtaWriter::begin() {
+        Ok(writer) => writer,
+        Err(error) => {
+            reporter.report(Ota_state {
+                job_id: command.job_id,
+                phase: Ota_phase::Failed,
+                error_message: Some("ota_partition_unavailable".to_owned()),
+            });
+            return Err(error);
+        }
+    };
+    match processor.run(&command, &mut policy, &mut transport, writer, &mut reporter) {
+        Ok(()) => {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            unsafe { esp_idf_svc::sys::esp_restart() };
+            Ok(())
+        }
+        Err(error) => {
+            reporter.report(Ota_state {
+                job_id: command.job_id,
+                phase: Ota_phase::Failed,
+                error_message: Some(format!("{error:?}")),
+            });
+            Err(anyhow::anyhow!("ota_failed_{error:?}"))
+        }
+    }
+}
+
+fn firmware_public_key() -> Option<[u8; 32]> {
+    let encoded = option_env!("FIRMWARE_MANIFEST_PUBLIC_KEY_HEX")?;
+    let bytes = hex::decode(encoded).ok()?;
+    bytes.try_into().ok()
 }
 
 fn enroll_device(

@@ -23,15 +23,18 @@ Data sources --> Control plane --> MQTT broker <-- Glance Deck
 | HA entities and automations sourced from control-plane API | Home Assistant |
 | Wi-Fi/MQTT reconnect and cached current display | Device |
 | Reflective screen rendering and local button navigation | Device |
-| Third-party API credentials | Home Assistant only |
+| Third-party API credentials | Encrypted control-plane storage only |
 
 ## Firmware layers
 
 1. `main`: boot sequencing and application lifecycle.
-2. `components/connectivity` (planned): Wi-Fi provisioning, NVS, MQTT.
-3. `components/protocol` (planned): bounded JSON parsing and MQTT topics.
+2. `provisioning_esp`, `esp_config`, and `esp_mqtt`: Wi-Fi provisioning, NVS,
+   reconnect, and MQTT transport.
+3. `mqtt`, `release_sync`, and `page_controller`: bounded protocol parsing,
+   demand-based page downloads, cache commits, and state reporting.
 4. `components/display`: RLCD/LVGL adapter and renderer.
-5. `components/ui` (planned): pages, widgets, and interaction state.
+5. `runtime`, `buttons`, and `local_screen`: local interaction and maintenance
+   state.
 
 The display adapter is intentionally isolated because the factory sample's
 driver and pin setup will be brought in after the board is available for a

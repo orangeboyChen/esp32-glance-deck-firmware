@@ -21,10 +21,39 @@ and reports its own state.
 
 ## Development status
 
-The repository contains a Rust-on-ESP-IDF firmware scaffold, Bun-managed
-Next.js control-plane scaffold, Docker Compose development services, and the
-v1 MQTT contract. Wi-Fi provisioning, RLCD driver integration, device MQTT,
-Home Assistant discovery, and the authenticated control plane are next.
+The repository contains the v1 control-plane, enrollment, display-release,
+Home Assistant, and OTA protocol implementations. The firmware runs as a Rust
+application in ESP-IDF and keeps the last verified frame available while the
+network is offline. Battery support is defined around an external protected
+power-path carrier; the firmware reports `unavailable` until that carrier's
+actual gauge and charger pin map are selected.
+
+## Local development
+
+The console is managed with Bun:
+
+```sh
+bun install --cwd console
+bun run --cwd console test:coverage
+bun run --cwd console build
+```
+
+The Home Assistant integration is managed with uv:
+
+```sh
+uv sync --directory home-assistant
+uv run --directory home-assistant pytest
+```
+
+For firmware work, open the repository in the provided dev container and run
+`idf.py build` from `firmware/`. Host-only Rust tests can be run without ESP-IDF:
+
+```sh
+CARGO_TARGET_DIR=/private/tmp/glance-deck-host-target cargo test --manifest-path firmware/Cargo.toml --lib --no-default-features
+```
+
+Replace every development secret before exposing the console through a reverse
+proxy.
 
 ## License
 

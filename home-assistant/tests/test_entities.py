@@ -45,9 +45,15 @@ def test_entity_metadata_and_status_properties() -> None:
     assert entity.extra_state_attributes["preview_url"].endswith("/entry-a/deck-a")
     assert GlanceDeckStatusBinarySensor(coordinator, "deck-a", "online").is_on is True
     assert GlanceDeckStatusBinarySensor(coordinator, "deck-a", "stale").is_on is True
+    assert GlanceDeckStatusBinarySensor(coordinator, "deck-a", "alert").is_on is False
+    coordinator.data["deck-a"]["active_alert"] = {"severity": "warning"}
+    assert GlanceDeckStatusBinarySensor(coordinator, "deck-a", "alert").is_on is True
     assert GlanceDeckStatusBinarySensor(coordinator, "deck-a", "ota").is_on is True
     coordinator.data["deck-a"]["status"] = "offline"
     assert entity.available is False
+    online = GlanceDeckStatusBinarySensor(coordinator, "deck-a", "online")
+    assert online.available is True
+    assert online.is_on is False
 
 
 def test_sensor_values_and_page_selection() -> None:
@@ -59,6 +65,10 @@ def test_sensor_values_and_page_selection() -> None:
     assert GlanceDeckSensor(coordinator, "deck-a", "reset_time", None).native_value.year == 2026
     assert GlanceDeckSensor(coordinator, "deck-a", "battery_percent", None).native_value == 82
     assert GlanceDeckSensor(coordinator, "deck-a", "battery_mv", None).native_value == 3975
+    assert GlanceDeckSensor(coordinator, "deck-a", "current_page", None).native_value == "usage"
+    source = GlanceDeckSensor(coordinator, "deck-a", "source_values", None)
+    assert source.native_value == "available"
+    assert source.extra_state_attributes["source_values"]["used"] == 72
     assert GlanceDeckSensor(coordinator, "deck-a", "power_updated_at", None).native_value.minute == 15
     assert GlanceDeckSensor(coordinator, "deck-a", "battery_percent", None).extra_state_attributes["charging"] is True
     page_select = GlanceDeckPageSelect(coordinator, "deck-a")

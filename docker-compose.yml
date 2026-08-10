@@ -7,16 +7,26 @@ services:
       DATABASE_URL: postgresql://glance_deck:glance_deck@postgres:5432/glance_deck
       MQTT_URL: mqtt://mosquitto:1883
       MQTT_ALLOW_PLAINTEXT_INTERNAL: "true"
-      APP_URL: http://localhost:3000
-      APP_MASTER_KEY: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE
-      DEVICE_ASSET_SIGNING_KEY: development-asset-key-change-me
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DEVICE_ASSET_URL: ${DEVICE_ASSET_URL:-https://localhost:3000}
+      DEVICE_MQTT_URL: ${DEVICE_MQTT_URL:-mqtts://mqtt.example.invalid}
+      APP_MASTER_KEY: ${APP_MASTER_KEY:-MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE}
+      DEVICE_ASSET_SIGNING_KEY: ${DEVICE_ASSET_SIGNING_KEY:-development-asset-key-change-me}
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
       mosquitto:
-        condition: service_started
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   worker:
     build:
@@ -27,13 +37,19 @@ services:
       DATABASE_URL: postgresql://glance_deck:glance_deck@postgres:5432/glance_deck
       MQTT_URL: mqtt://mosquitto:1883
       MQTT_ALLOW_PLAINTEXT_INTERNAL: "true"
-      APP_MASTER_KEY: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE
-      DEVICE_ASSET_SIGNING_KEY: development-asset-key-change-me
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DEVICE_ASSET_URL: ${DEVICE_ASSET_URL:-https://localhost:3000}
+      DEVICE_MQTT_URL: ${DEVICE_MQTT_URL:-mqtts://mqtt.example.invalid}
+      APP_MASTER_KEY: ${APP_MASTER_KEY:-MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE}
+      DEVICE_ASSET_SIGNING_KEY: ${DEVICE_ASSET_SIGNING_KEY:-development-asset-key-change-me}
     depends_on:
       postgres:
         condition: service_healthy
       mosquitto:
-        condition: service_started
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
   migrate:
     build:
@@ -67,6 +83,12 @@ services:
     volumes:
       - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto_data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "127.0.0.1", "-t", "glance_deck/healthcheck", "-n", "-q", "0"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   postgres_data:

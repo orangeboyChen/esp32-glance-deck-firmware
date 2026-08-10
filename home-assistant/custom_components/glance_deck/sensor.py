@@ -23,6 +23,7 @@ SENSORS: tuple[tuple[str, str | None], ...] = (
     ("battery_percent", SensorDeviceClass.BATTERY),
     ("battery_mv", SensorDeviceClass.VOLTAGE),
     ("power_updated_at", SensorDeviceClass.TIMESTAMP),
+    ("source_values", None),
 )
 
 
@@ -54,6 +55,8 @@ class GlanceDeckSensor(GlanceDeckEntity, SensorEntity):
 
     @property
     def native_value(self) -> Any:
+        if self.key == "current_page":
+            return self.device.get("active_page_id") or self.device.get("current_page")
         if self.key == "release_version":
             return self.device.get("display", {}).get("release_version") or self.device.get("release_version")
         source = self.device.get("display", {}).get("source", {})
@@ -66,6 +69,10 @@ class GlanceDeckSensor(GlanceDeckEntity, SensorEntity):
         if self.key == "reset_time":
             value = values.get("resets_at")
             return datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else None
+        if self.key == "source_values":
+            source = self.device.get("display", {}).get("source", {})
+            values = source.get("values") if isinstance(source, dict) else None
+            return "available" if isinstance(values, dict) and values else None
         value = self.device.get(self.key)
         if self.key in ("last_seen_at", "power_updated_at") and isinstance(value, str):
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -79,4 +86,12 @@ class GlanceDeckSensor(GlanceDeckEntity, SensorEntity):
                 "power_source": self.device.get("power_source", "unavailable"),
                 "charging": self.device.get("charging"),
             })
+        if self.key == "source_values":
+            source = self.device.get("display", {}).get("source", {})
+            if isinstance(source, dict):
+                values = source.get("values")
+                if isinstance(values, dict):
+                    attributes["source_values"] = values
+                if isinstance(source.get("fetched_at"), str):
+                    attributes["source_fetched_at"] = source["fetched_at"]
         return attributes
