@@ -1,0 +1,37 @@
+{
+  "name": "@glance-deck/console",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "bun test",
+    "worker": "bun --bun src/worker.ts",
+    "db:migrate": "bun --bun src/server/migrate.ts"
+  },
+  "dependencies": {
+    "@lobehub/ui": "5.29.1",
+    "@simplewebauthn/server": "^13.3.2",
+    "@simplewebauthn/types": "^12.0.0",
+    "argon2": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
+    "jotai": "^2.20.2",
+    "lucide-react": "^1.31.0",
+    "mqtt": "^5.15.2",
+    "next": "16.0.10",
+    "postgres": "^3.4.9",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/pg": "^8.21.0",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "5.7.2"
+  }
+}

@@ -1,0 +1,35 @@
+:root {
+  color: #1f2a24;
+  background: #edf0e9;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+.shell { margin: 0 auto; max-width: 1200px; padding: 48px 28px 72px; }
+.header { align-items: flex-start; }
+h1 { font-family: Georgia, serif; font-size: clamp(2.4rem, 6vw, 4.8rem); font-weight: 400; letter-spacing: -0.05em; line-height: .95; margin: 8px 0 0; }
+h2, h3 { font-family: Georgia, serif; font-weight: 400; margin: 0; }
+h3 { font-size: 2rem; }
+.eyebrow { color: #627168; font-size: .72rem; font-weight: 700; letter-spacing: .12em; margin: 0; text-transform: uppercase; }
+.header-subtitle { max-width: 620px; }
+.summary { border-bottom: 1px solid #b9c2b9; border-top: 1px solid #b9c2b9; margin: 24px 0 8px; padding: 18px 0; }
+.summary-item { flex: 1; min-width: 0; }
+.summary strong { font-family: Georgia, serif; font-size: 2.4rem; font-weight: 400; }
+.section-title { font-size: 2rem; }
+.device-card { align-items: center; background: #f7f8f5; display: flex; flex-direction: row; gap: 44px; padding: 32px; transition: box-shadow .2s ease, transform .2s ease; }
+.device-card:hover { transform: translateY(-2px); }
+.device-preview { aspect-ratio: 3 / 4; background: #f2f4ed; border: 10px solid #26322a; box-shadow: 9px 9px 0 #d8ddd4; color: #26322a; display: flex; flex: 0 0 min(300px, 40vw); flex-direction: column; padding: 18px; }
+.device-preview[data-selected] { box-shadow: 9px 9px 0 #db6c32; }
+.image-preview { object-fit: contain; padding: 0; }
+.preview-select { height: auto; padding: 0; }
+.empty-state { border: 1px dashed #9ca89e; color: #627168; margin: 0; padding: 24px; }
+.preview-header, .preview-footer { display: flex; font-size: .65rem; font-weight: 700; justify-content: space-between; letter-spacing: .08em; }
+.preview-content { display: grid; flex: 1; place-content: center; }
+.preview-content strong { font-family: Georgia, serif; font-size: 5rem; font-weight: 400; line-height: 1; }
+.preview-content p:last-child { color: #627168; font-size: .9rem; line-height: 1.4; }
+.preview-label { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.device-meta { max-width: 460px; }
+.device-card[data-selected] { outline: 3px solid #db6c32; outline-offset: 3px; }
+.live-feedback { bottom: 20px; left: 50%; margin: 0; position: fixed; transform: translateX(-50%); width: min(560px, calc(100vw - 32px)); z-index: 20; }
+@media (max-width: 680px) { .shell { padding: 28px 18px; } .header, .device-card, .summary { align-items: stretch; flex-direction: column; } .summary { margin: 4px 0 8px; } .device-preview { flex-basis: auto; max-width: 300px; width: 100%; } }
