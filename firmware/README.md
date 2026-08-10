@@ -17,8 +17,8 @@ Rust source, which is required for the Xtensa target:
 
 ```sh
 cd firmware
-cargo build
-cargo run
+cargo build --features esp
+cargo run --features esp
 ```
 
 `cargo run` uses `espflash flash --monitor`; connect the board to the host and
