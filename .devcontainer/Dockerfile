@@ -22,7 +22,7 @@ RUN mkdir -p /home/esp/.cargo/bin \
       esac \
     && curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/esp-rs/espup/releases/latest/download/espup-${espup_target}" -o /home/esp/.cargo/bin/espup \
     && chmod +x /home/esp/.cargo/bin/espup \
-    && espup install \
+    && espup install --targets esp32s3 \
     && . /home/esp/export-esp.sh \
     && cargo install cargo-espflash --locked \
     && curl -fsSL https://bun.sh/install | bash
