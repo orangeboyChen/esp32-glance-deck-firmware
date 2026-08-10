@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::validate_device_id;
 
 pub const TOPIC_PREFIX: &str = "glance_deck";
-pub const MAX_MQTT_PAYLOAD_BYTES: usize = 4096;
+pub const MAX_MQTT_PAYLOAD_BYTES: usize = 8192;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeviceTopics {

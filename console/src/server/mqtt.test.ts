@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { command_message, is_device_state, is_ota_state, ota_message, release_message, validate_mqtt_url } from './mqtt'
+import { command_message, is_device_state, is_ota_state, MAX_DEVICE_MQTT_PAYLOAD_BYTES, ota_message, release_message, validate_mqtt_url } from './mqtt'
 
 describe('MQTT transport validation', () => {
   test('requires TLS outside an explicit trusted-internal exception', () => {
@@ -21,6 +21,13 @@ describe('MQTT transport validation', () => {
     expect(message.pages[0].image_url).toContain('/api/v1/releases/release-1/pages/usage/image')
     expect(() => release_message({ ...release, pages: [] }, 'https://console.example')).toThrow('release_pages_invalid')
     expect(() => release_message(release, 'http://console.example')).toThrow('device_asset_url_https_required')
+  })
+
+  test('rejects a release document beyond the device memory limit', () => {
+    process.env.DEVICE_ASSET_SIGNING_KEY = 'unit-test-key'
+    const oversized_base_url = `https://${'a'.repeat(MAX_DEVICE_MQTT_PAYLOAD_BYTES)}.example`
+    const release = { id: 'release-1', active_page_id: 'usage', pages: [{ page_id: 'usage', image_format: 'mono1-msb', image_width: 400, image_height: 300, image_sha256: 'a'.repeat(64), image_bytes: 15000 }] }
+    expect(() => release_message(release, oversized_base_url)).toThrow('release_message_too_large')
   })
 
   test('accepts only complete device and OTA state messages', () => {

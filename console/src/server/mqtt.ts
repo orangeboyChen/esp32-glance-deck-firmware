@@ -8,6 +8,8 @@ import { device_commands, devices, ota_jobs } from './schema'
 let mqtt_client: MqttClient | undefined
 let state_consumer_started = false
 
+export const MAX_DEVICE_MQTT_PAYLOAD_BYTES = 8_192
+
 export function validate_mqtt_url(url: string, allow_plaintext_internal = false) {
   const parsed = new URL(url)
   if (parsed.protocol === 'mqtts:' || parsed.protocol === 'wss:') return parsed
@@ -26,12 +28,14 @@ export function ota_message(job: { id: string; nonce: string; version: string; m
 export function release_message(release: { id: string; active_page_id: string; pages: ReleasePageMetadata[] }, base_url: string) {
   if (!base_url.startsWith('https://')) throw new Error('device_asset_url_https_required')
   if (release.pages.length === 0 || !release.pages.some((page) => page.page_id === release.active_page_id)) throw new Error('release_pages_invalid')
-  return JSON.stringify({
+  const message = JSON.stringify({
     release_id: release.id,
     document_version: 1,
     active_page_id: release.active_page_id,
     pages: release.pages.map((page) => ({ ...page, image_url: signed_release_page_image_url(base_url, release.id, page.page_id) })),
   })
+  if (Buffer.byteLength(message, 'utf8') > MAX_DEVICE_MQTT_PAYLOAD_BYTES) throw new Error('release_message_too_large')
+  return message
 }
 
 function get_client() {
@@ -138,7 +142,7 @@ export function is_ota_state(value: unknown): value is OtaStateMessage {
 
 export async function consume_device_state(topic: string, payload: Buffer) {
   const match = /^glance_deck\/([a-z0-9-]{1,64})\/state$/.exec(topic)
-  if (!match || !db || payload.length > 4096) return
+  if (!match || !db || payload.length > MAX_DEVICE_MQTT_PAYLOAD_BYTES) return
   let state: unknown
   try {
     state = JSON.parse(payload.toString('utf8'))
@@ -171,7 +175,7 @@ export async function consume_device_state(topic: string, payload: Buffer) {
 
 export async function consume_ota_state(topic: string, payload: Buffer) {
   const match = /^glance_deck\/([a-z0-9-]{1,64})\/ota\/state$/.exec(topic)
-  if (!match || !db || payload.length > 4096) return
+  if (!match || !db || payload.length > MAX_DEVICE_MQTT_PAYLOAD_BYTES) return
   let state: unknown
   try { state = JSON.parse(payload.toString('utf8')) } catch { return }
   if (!is_ota_state(state)) return
