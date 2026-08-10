@@ -3,6 +3,8 @@ pub mod buttons;
 pub mod config;
 pub mod display;
 #[cfg(feature = "esp")]
+pub mod esp_mqtt;
+#[cfg(feature = "esp")]
 pub mod esp_storage;
 pub mod flash_cache;
 pub mod mqtt;
