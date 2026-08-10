@@ -276,5 +276,17 @@
     "power_unsafe_for_ota": "更新前に USB 電源または 30% 以上のバッテリーが必要です。",
     "incompatible_release": "このリリースはデバイスに対応していません。",
     "device_or_release_not_found": "デバイスまたはファームウェアリリースは利用できなくなりました。"
+    ,"rolloutTitle": "段階的ロールアウト"
+    ,"rolloutDescription": "電源が安全な互換デバイスの指定割合に署名済みリリースをキューします。"
+    ,"rolloutRelease": "リリース"
+    ,"chooseRelease": "リリースを選択"
+    ,"rolloutPercentage": "割合"
+    ,"rolloutDevices": "対象デバイス"
+    ,"startRollout": "ロールアウトを開始"
+    ,"rolloutQueued": "{count} 台の更新をキューしました。"
+    ,"rolloutFailed": "ロールアウトを開始できません。"
+    ,"no_power_safe_devices": "安全な電源テレメトリを持つ互換デバイスがありません。"
+    ,"device_not_found": "選択したデバイスは存在しません。"
+    ,"firmware_release_not_found": "ファームウェアリリースは存在しません。"
   }
 }

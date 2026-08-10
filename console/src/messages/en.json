@@ -276,5 +276,17 @@
     "power_unsafe_for_ota": "The device needs USB power or at least 30% battery before updating.",
     "incompatible_release": "This release is not compatible with the device.",
     "device_or_release_not_found": "The device or firmware release is no longer available."
+    ,"rolloutTitle": "Staged rollout"
+    ,"rolloutDescription": "Queue a signed release for a selected percentage of power-safe compatible devices."
+    ,"rolloutRelease": "Release"
+    ,"chooseRelease": "Choose a release"
+    ,"rolloutPercentage": "Percentage"
+    ,"rolloutDevices": "Candidate devices"
+    ,"startRollout": "Start rollout"
+    ,"rolloutQueued": "Queued the rollout for {count} device(s)."
+    ,"rolloutFailed": "Unable to start the rollout."
+    ,"no_power_safe_devices": "No compatible device has safe power telemetry."
+    ,"device_not_found": "A selected device no longer exists."
+    ,"firmware_release_not_found": "The firmware release no longer exists."
   }
 }

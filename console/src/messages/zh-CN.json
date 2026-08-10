@@ -276,5 +276,17 @@
     "power_unsafe_for_ota": "更新前设备需要 USB 电源或至少 30% 电量。",
     "incompatible_release": "该固件版本与设备不兼容。",
     "device_or_release_not_found": "设备或固件版本已不可用。"
+    ,"rolloutTitle": "分阶段更新"
+    ,"rolloutDescription": "为选定比例且电源安全的兼容设备排队签名版本。"
+    ,"rolloutRelease": "版本"
+    ,"chooseRelease": "选择版本"
+    ,"rolloutPercentage": "比例"
+    ,"rolloutDevices": "候选设备"
+    ,"startRollout": "开始分阶段更新"
+    ,"rolloutQueued": "已为 {count} 台设备排队更新。"
+    ,"rolloutFailed": "无法开始分阶段更新。"
+    ,"no_power_safe_devices": "没有具备安全电源遥测的兼容设备。"
+    ,"device_not_found": "选中的设备已不存在。"
+    ,"firmware_release_not_found": "固件版本已不存在。"
   }
 }

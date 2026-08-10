@@ -138,6 +138,7 @@ export const devices = pgTable('devices', {
   board_model: varchar('board_model', { length: 64 }).default('ESP32-S3-RLCD-4.2').notNull(),
   status: device_status('status').default('enrolling').notNull(),
   firmware_version: varchar('firmware_version', { length: 64 }),
+  last_good_firmware_release_id: uuid('last_good_firmware_release_id').references(() => firmware_releases.id),
   wifi_rssi: integer('wifi_rssi'),
   active_page_id: varchar('active_page_id', { length: 64 }).default('system').notNull(),
   desired_page_id: varchar('desired_page_id', { length: 64 }),
