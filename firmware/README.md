@@ -11,7 +11,9 @@ display driver before hardware bring-up.
 
 ## Commands
 
-Run these commands inside the Dev Container:
+Run these commands inside the Dev Container. The checked-in Cargo target
+configuration rebuilds the ESP-IDF `std` library from the `espup`-provided
+Rust source, which is required for the Xtensa target:
 
 ```sh
 cd firmware
