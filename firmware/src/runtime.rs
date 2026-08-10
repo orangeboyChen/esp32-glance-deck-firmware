@@ -140,4 +140,45 @@ mod tests {
         assert_eq!(failed.command_status, Some(Command_status::Failed));
         assert_eq!(failed.error_message.as_deref(), Some("page_id_required"));
     }
+
+    #[test]
+    fn supports_next_and_maintenance_commands_and_rejects_missing_pages() {
+        let mut runtime = Device_runtime::new(vec!["usage".to_owned()]);
+        let next = Device_command {
+            command_id: "next".to_owned(),
+            action: Device_command_action::Next_page,
+            payload: Command_payload::default(),
+        };
+        assert_eq!(runtime.apply_command(&next), Ok(()));
+        let maintenance = Device_command {
+            command_id: "maint".to_owned(),
+            action: Device_command_action::Enter_maintenance,
+            payload: Command_payload::default(),
+        };
+        assert_eq!(runtime.apply_command(&maintenance), Ok(()));
+        assert_eq!(runtime.screen, Local_screen::Maintenance);
+        let missing = Device_command {
+            command_id: "missing".to_owned(),
+            action: Device_command_action::Show_page,
+            payload: Command_payload {
+                page_id: Some("missing".to_owned()),
+                rotation_seconds: None,
+            },
+        };
+        assert_eq!(runtime.apply_command(&missing), Err("page_not_enabled"));
+        for action in [
+            Device_command_action::Previous_page,
+            Device_command_action::Set_rotation,
+            Device_command_action::Refresh_release,
+        ] {
+            assert_eq!(
+                runtime.apply_command(&Device_command {
+                    command_id: "ignored".to_owned(),
+                    action,
+                    payload: Command_payload::default()
+                }),
+                Ok(())
+            );
+        }
+    }
 }
