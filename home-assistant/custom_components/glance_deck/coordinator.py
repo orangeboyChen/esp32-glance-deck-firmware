@@ -33,7 +33,8 @@ class GlanceDeckCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 if not isinstance(device_id, str):
                     continue
                 display = await self.api.async_get_display(device_id)
-                result[device_id] = {**device, "display": display}
+                pages = await self.api.async_get_device_pages(device_id)
+                result[device_id] = {**device, "display": display, "page_configuration": pages}
             return result
         except GlanceDeckApiError as error:
             raise UpdateFailed(str(error)) from error

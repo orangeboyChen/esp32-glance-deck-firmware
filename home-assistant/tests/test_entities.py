@@ -22,6 +22,7 @@ class FakeCoordinator:
                 "power_source": "usb_and_battery", "charging": True, "battery_percent": 82, "battery_mv": 3975, "power_updated_at": "2026-08-10T12:15:00Z",
                 "available_firmware_version": "1.1.0", "ota_status": "downloading",
                 "display": {"stale": True, "release_version": 4, "pages": [{"id": "usage"}, {"id": "alerts"}], "source": {"values": {"used": 72, "total": 100, "resets_at": "2026-08-11T00:00:00Z"}}},
+                "page_configuration": {"enabled_page_ids": ["usage", "alerts"]},
             }
         }
         self.last_update_success = True

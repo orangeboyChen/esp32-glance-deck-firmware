@@ -40,6 +40,10 @@ class GlanceDeckApiClient:
         response = await self._async_request("GET", f"/api/v1/displays/{device_id}", allow_not_found=True)
         return response if isinstance(response, dict) else {}
 
+    async def async_get_device_pages(self, device_id: str) -> dict[str, Any]:
+        response = await self._async_request("GET", f"/api/v1/devices/{device_id}/pages", allow_not_found=True)
+        return response if isinstance(response, dict) else {}
+
     async def async_command(self, device_id: str, action: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         response = await self._async_request(
             "POST",

@@ -35,8 +35,9 @@ class GlanceDeckPageSelect(GlanceDeckEntity, SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        pages = self.device.get("display", {}).get("pages", [])
-        options = [page.get("id") for page in pages if isinstance(page, dict) and isinstance(page.get("id"), str)]
+        configuration = self.device.get("page_configuration", {})
+        enabled_pages = configuration.get("enabled_page_ids", []) if isinstance(configuration, dict) else []
+        options = [page_id for page_id in enabled_pages if isinstance(page_id, str)]
         return options or ([self.current_option] if self.current_option else [])
 
     async def async_select_option(self, option: str) -> None:

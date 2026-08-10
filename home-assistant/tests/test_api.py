@@ -18,6 +18,9 @@ async def server() -> str:
     async def display(_request: web.Request) -> web.Response:
         return web.json_response({"version": 1})
 
+    async def pages(_request: web.Request) -> web.Response:
+        return web.json_response({"enabled_page_ids": ["usage", "alerts"]})
+
     async def command(request: web.Request) -> web.Response:
         return web.json_response(await request.json(), status=202)
 
@@ -26,6 +29,7 @@ async def server() -> str:
 
     app.router.add_get("/api/v1/devices", devices)
     app.router.add_get("/api/v1/displays/{device_id}", display)
+    app.router.add_get("/api/v1/devices/{device_id}/pages", pages)
     app.router.add_post("/api/v1/devices/{device_id}/commands", command)
     app.router.add_post("/api/v1/devices/{device_id}/ota", command)
     app.router.add_get("/api/v1/devices/{device_id}/preview", preview)
@@ -44,6 +48,7 @@ async def test_client_reads_devices_and_writes_commands(server: str) -> None:
         client = GlanceDeckApiClient(session, server, "valid")
         assert await client.async_get_devices() == [{"id": "deck-a"}]
         assert await client.async_get_display("deck-a") == {"version": 1}
+        assert await client.async_get_device_pages("deck-a") == {"enabled_page_ids": ["usage", "alerts"]}
         assert (await client.async_command("deck-a", "next_page"))["action"] == "next_page"
         assert await client.async_start_ota("deck-a") == {}
         assert await client.async_get_preview("deck-a") == (b"<svg/>", "image/svg+xml")

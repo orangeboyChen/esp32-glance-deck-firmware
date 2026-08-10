@@ -18,10 +18,14 @@ def make_coordinator(api):
 
 
 @pytest.mark.asyncio
-async def test_coordinator_combines_device_and_display() -> None:
-    api = SimpleNamespace(async_get_devices=AsyncMock(return_value=[{"id": "deck-a"}, {"id": 1}]), async_get_display=AsyncMock(return_value={"version": 2}))
+async def test_coordinator_combines_device_display_and_enabled_page_configuration() -> None:
+    api = SimpleNamespace(
+        async_get_devices=AsyncMock(return_value=[{"id": "deck-a"}, {"id": 1}]),
+        async_get_display=AsyncMock(return_value={"version": 2}),
+        async_get_device_pages=AsyncMock(return_value={"enabled_page_ids": ["usage"]}),
+    )
     coordinator = make_coordinator(api)
-    assert await coordinator._async_update_data() == {"deck-a": {"id": "deck-a", "display": {"version": 2}}}
+    assert await coordinator._async_update_data() == {"deck-a": {"id": "deck-a", "display": {"version": 2}, "page_configuration": {"enabled_page_ids": ["usage"]}}}
     coordinator.data = {"deck-a": {"id": "deck-a"}}
     assert coordinator.device("deck-a") == {"id": "deck-a"}
     assert coordinator.device("missing") is None
