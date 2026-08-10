@@ -5,9 +5,6 @@
   },
   "remoteUser": "esp",
   "workspaceFolder": "/workspaces/esp32-glance-deck",
-  "mounts": [
-    "source=${localWorkspaceFolder},target=/workspaces/esp32-glance-deck,type=bind,consistency=cached"
-  ],
   "customizations": {
     "vscode": {
       "extensions": [
