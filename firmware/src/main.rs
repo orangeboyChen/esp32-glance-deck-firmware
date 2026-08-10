@@ -3,12 +3,13 @@ use esp_idf_svc::log::EspLogger;
 use log::{info, warn};
 
 use glance_deck_firmware::{
+    buttons::{KeyButton, KeyEvent},
     display::{DisplayCache, DisplayRelease},
     esp_config::load_device_config,
     esp_mqtt::EspDeviceMqtt,
     esp_storage::{DisplayStorage, HttpsPageDownloader},
     flash_cache::FlashDisplayCache,
-    mqtt::{DeviceState, Device_command},
+    mqtt::{DeviceState, Device_command, Device_command_action},
     provisioning_esp::{restart_requested, start_network, NetworkRuntime},
     release_sync::{synchronize_page, synchronize_release},
     rlcd::RlcdRenderer,
@@ -33,6 +34,10 @@ fn main() -> Result<()> {
     let mut renderer = RlcdRenderer::new()?;
     let mut downloader = HttpsPageDownloader::new();
     let mut mqtt = EspDeviceMqtt::connect(&config.mqtt, &config.device_id)?;
+    let mut key = KeyButton::new()?;
+    let mut current_page_id = cache
+        .current_release()?
+        .map(|release| release.active_page_id);
     info!("device runtime connected as {}", config.device_id);
 
     loop {
@@ -41,42 +46,92 @@ fn main() -> Result<()> {
             std::thread::sleep(std::time::Duration::from_millis(250));
             unsafe { esp_idf_svc::sys::esp_restart() };
         }
+        if matches!(key.poll(), Some(KeyEvent::ShortPress)) {
+            if let Some(release) = cache.current_release()? {
+                let page_id = adjacent_page_id(&release, current_page_id.as_deref(), false)?;
+                if let Err(error) = render_cached_page(
+                    &mut cache,
+                    &mut renderer,
+                    &mut mqtt,
+                    &release,
+                    &page_id,
+                    None,
+                ) {
+                    warn!("local page change retained prior frame: {error:#}");
+                } else {
+                    current_page_id = Some(page_id);
+                }
+            }
+        }
         if let Some(message) = mqtt.next_message() {
             if message.topic == mqtt.topics().release() {
-                match serde_json::from_slice::<DisplayRelease>(&message.payload)
-                    .map_err(anyhow::Error::from)
-                    .and_then(|release| {
-                        synchronize_release(&mut cache, &mut downloader, &release)
-                            .map_err(|error| anyhow::anyhow!("release sync failed: {error:?}"))?;
-                        render_and_report(
-                            &mut cache,
-                            &mut renderer,
-                            &mut mqtt,
-                            &release,
-                            &release.active_page_id,
-                            None,
-                            true,
-                        )
-                    }) {
-                    Ok(()) => info!("display release applied"),
-                    Err(error) => warn!("display release retained prior frame: {error:#}"),
+                match serde_json::from_slice::<DisplayRelease>(&message.payload) {
+                    Ok(release) => {
+                        let active_page_id = release.active_page_id.clone();
+                        match (|| -> Result<()> {
+                            synchronize_release(&mut cache, &mut downloader, &release).map_err(
+                                |error| anyhow::anyhow!("release sync failed: {error:?}"),
+                            )?;
+                            render_and_report(
+                                &mut cache,
+                                &mut renderer,
+                                &mut mqtt,
+                                &release,
+                                &release.active_page_id,
+                                None,
+                                true,
+                            )
+                        })() {
+                            Ok(()) => {
+                                current_page_id = Some(active_page_id);
+                                info!("display release applied")
+                            }
+                            Err(error) => warn!("display release retained prior frame: {error:#}"),
+                        }
+                    }
+                    Err(error) => warn!("rejected release metadata: {error}"),
                 }
             } else if message.topic == mqtt.topics().command() {
                 match Device_command::from_payload(&message.payload) {
-                    Ok(command)
-                        if matches!(
-                            command.action,
-                            glance_deck_firmware::mqtt::Device_command_action::Show_page
-                        ) =>
-                    {
+                    Ok(command) => {
                         let Some(release) = cache.current_release()? else {
                             continue;
                         };
-                        let Some(page_id) = command.payload.page_id.as_deref() else {
+                        let page_id = match command.action {
+                            Device_command_action::Show_page => command.payload.page_id.clone(),
+                            Device_command_action::Next_page => Some(adjacent_page_id(
+                                &release,
+                                current_page_id.as_deref(),
+                                false,
+                            )?),
+                            Device_command_action::Previous_page => Some(adjacent_page_id(
+                                &release,
+                                current_page_id.as_deref(),
+                                true,
+                            )?),
+                            Device_command_action::Refresh_release => Some(
+                                current_page_id
+                                    .clone()
+                                    .unwrap_or_else(|| release.active_page_id.clone()),
+                            ),
+                            Device_command_action::Set_rotation
+                            | Device_command_action::Enter_maintenance => None,
+                        };
+                        let Some(page_id) = page_id else {
+                            publish_command_result(
+                                &mut mqtt,
+                                &release,
+                                current_page_id
+                                    .as_deref()
+                                    .unwrap_or(&release.active_page_id),
+                                &command.command_id,
+                                false,
+                                Some("command_not_available"),
+                            )?;
                             continue;
                         };
                         let result =
-                            synchronize_page(&mut cache, &mut downloader, &release, page_id)
+                            synchronize_page(&mut cache, &mut downloader, &release, &page_id)
                                 .map_err(|error| anyhow::anyhow!("page sync failed: {error:?}"))
                                 .and_then(|_| {
                                     render_and_report(
@@ -84,7 +139,7 @@ fn main() -> Result<()> {
                                         &mut renderer,
                                         &mut mqtt,
                                         &release,
-                                        page_id,
+                                        &page_id,
                                         Some(&command.command_id),
                                         true,
                                     )
@@ -94,20 +149,66 @@ fn main() -> Result<()> {
                             publish_command_result(
                                 &mut mqtt,
                                 &release,
-                                page_id,
+                                &page_id,
                                 &command.command_id,
                                 false,
                                 Some("page_not_available"),
                             )?;
+                        } else {
+                            current_page_id = Some(page_id);
                         }
                     }
-                    Ok(_) => {}
                     Err(error) => warn!("rejected command: {error}"),
                 }
             }
         }
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
+}
+
+fn adjacent_page_id(
+    release: &DisplayRelease,
+    current_page_id: Option<&str>,
+    previous: bool,
+) -> Result<String> {
+    let current_index = current_page_id
+        .and_then(|page_id| {
+            release
+                .pages
+                .iter()
+                .position(|page| page.page_id == page_id)
+        })
+        .or_else(|| {
+            release
+                .pages
+                .iter()
+                .position(|page| page.page_id == release.active_page_id)
+        })
+        .context("release has no active page")?;
+    let page_count = release.pages.len();
+    let index = if previous {
+        (current_index + page_count - 1) % page_count
+    } else {
+        (current_index + 1) % page_count
+    };
+    Ok(release.pages[index].page_id.clone())
+}
+
+fn render_cached_page(
+    cache: &mut FlashDisplayCache,
+    renderer: &mut RlcdRenderer,
+    mqtt: &mut EspDeviceMqtt,
+    release: &DisplayRelease,
+    page_id: &str,
+    command_id: Option<&str>,
+) -> Result<()> {
+    let page = release.page(page_id).context("requested page missing")?;
+    let frame = cache
+        .read_page(&page.image_sha256)?
+        .context("requested frame is not cached")?;
+    page.validate_image(&frame)?;
+    renderer.flush_frame(&frame)?;
+    publish_state(mqtt, release, page_id, command_id, true, None)
 }
 
 fn render_and_report(
@@ -125,6 +226,17 @@ fn render_and_report(
         .context("requested frame missing")?;
     page.validate_image(&frame)?;
     renderer.flush_frame(&frame)?;
+    publish_state(mqtt, release, page_id, command_id, confirmed, None)
+}
+
+fn publish_state(
+    mqtt: &mut EspDeviceMqtt,
+    release: &DisplayRelease,
+    page_id: &str,
+    command_id: Option<&str>,
+    confirmed: bool,
+    error_message: Option<&str>,
+) -> Result<()> {
     let state = DeviceState {
         version: 1,
         page_id: page_id.to_owned(),
@@ -139,7 +251,7 @@ fn render_and_report(
                 glance_deck_firmware::mqtt::Command_status::Failed
             }
         }),
-        error_message: None,
+        error_message: error_message.map(str::to_owned),
         firmware_version: Some(env!("CARGO_PKG_VERSION").to_owned()),
         power: None,
     };
