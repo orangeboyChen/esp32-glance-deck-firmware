@@ -2,6 +2,7 @@
 pub mod buttons;
 pub mod config;
 pub mod display;
+pub mod flash_cache;
 pub mod mqtt;
 pub mod page_controller;
 pub mod pages;
