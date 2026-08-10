@@ -1,9 +1,6 @@
 use anyhow::{bail, Context, Result};
 use embedded_svc::{
-    http::{
-        client::{Client as HttpClient, Response},
-        Method,
-    },
+    http::{client::Client as HttpClient, Method},
     io::Read,
 };
 use esp_idf_svc::sys::{self, esp_err_t, esp_ota_handle_t, esp_partition_t, ESP_OK};
@@ -88,7 +85,7 @@ impl EspHttpsOtaTransport {
         Self
     }
 
-    fn request(&self, url: &str) -> Result<Response<EspHttpConnection>> {
+    fn connection(&self, url: &str) -> Result<EspHttpConnection> {
         if !url.starts_with("https://") {
             bail!("ota_url_not_https");
         }
@@ -99,13 +96,7 @@ impl EspHttpsOtaTransport {
                 ..Default::default()
             },
         )?;
-        let mut client = HttpClient::wrap(connection);
-        let request = client.request(Method::Get, url, &[])?;
-        let response = request.submit()?;
-        if response.status() != 200 {
-            bail!("ota_http_status_{}", response.status());
-        }
-        Ok(response)
+        Ok(connection)
     }
 }
 
@@ -113,7 +104,13 @@ impl OtaTransport for EspHttpsOtaTransport {
     type Error = anyhow::Error;
 
     fn fetch_manifest(&mut self, url: &str, max_bytes: usize) -> Result<Vec<u8>, Self::Error> {
-        let mut response = self.request(url)?;
+        let connection = self.connection(url)?;
+        let mut client = HttpClient::wrap(connection);
+        let request = client.request(Method::Get, url, &[])?;
+        let mut response = request.submit()?;
+        if response.status() != 200 {
+            bail!("ota_http_status_{}", response.status());
+        }
         let length = response
             .header("content-length")
             .and_then(|value| value.parse::<usize>().ok())
@@ -142,7 +139,13 @@ impl OtaTransport for EspHttpsOtaTransport {
         max_bytes: usize,
         on_chunk: &mut dyn FnMut(&[u8]) -> Result<(), Self::Error>,
     ) -> Result<usize, Self::Error> {
-        let mut response = self.request(url)?;
+        let connection = self.connection(url)?;
+        let mut client = HttpClient::wrap(connection);
+        let request = client.request(Method::Get, url, &[])?;
+        let mut response = request.submit()?;
+        if response.status() != 200 {
+            bail!("ota_http_status_{}", response.status());
+        }
         let length = response
             .header("content-length")
             .and_then(|value| value.parse::<usize>().ok())
@@ -153,7 +156,8 @@ impl OtaTransport for EspHttpsOtaTransport {
         let mut buffer = [0_u8; OTA_HTTP_BUFFER_BYTES];
         let mut total = 0usize;
         while total < length {
-            let count = response.read(&mut buffer[..(length - total).min(buffer.len())])?;
+            let chunk_length = (length - total).min(OTA_HTTP_BUFFER_BYTES);
+            let count = response.read(&mut buffer[..chunk_length])?;
             if count == 0 {
                 bail!("ota_image_truncated");
             }

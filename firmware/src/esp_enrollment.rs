@@ -84,11 +84,16 @@ fn post_json(url: &str, value: &serde_json::Value) -> Result<Vec<u8>> {
         bail!("enrollment_http_status_{}", response.status())
     }
     let mut bytes = Vec::with_capacity(MAX_RESPONSE_BYTES);
-    response
-        .take(MAX_RESPONSE_BYTES as u64)
-        .read_to_end(&mut bytes)?;
-    if bytes.len() == MAX_RESPONSE_BYTES {
-        bail!("enrollment_response_too_large")
+    let mut buffer = [0_u8; 512];
+    loop {
+        let count = response.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        if bytes.len() + count > MAX_RESPONSE_BYTES {
+            bail!("enrollment_response_too_large");
+        }
+        bytes.extend_from_slice(&buffer[..count]);
     }
     Ok(bytes)
 }

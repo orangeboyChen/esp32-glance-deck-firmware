@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Context, Result};
 use embedded_svc::{
-    http::Method,
+    http::{Headers, Method},
     io::{Read, Write},
     wifi::{AccessPointConfiguration, AuthMethod, ClientConfiguration, Configuration},
 };
@@ -105,8 +105,16 @@ fn connect_station(wifi: &mut BlockingWifi<EspWifi<'static>>, config: &WifiConfi
         bail!("saved Wi-Fi configuration has invalid lengths");
     }
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-        ssid: config.ssid.as_str().try_into()?,
-        password: config.password.as_str().try_into()?,
+        ssid: config
+            .ssid
+            .as_str()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("wifi_ssid_invalid"))?,
+        password: config
+            .password
+            .as_str()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("wifi_password_invalid"))?,
         auth_method: if config.password.is_empty() {
             AuthMethod::None
         } else {
@@ -126,8 +134,13 @@ fn start_portal(
 ) -> Result<NetworkRuntime> {
     let portal_password = format!("GD{:08X}", unsafe { esp_idf_svc::sys::esp_random() });
     wifi.set_configuration(&Configuration::AccessPoint(AccessPointConfiguration {
-        ssid: PORTAL_SSID.try_into()?,
-        password: portal_password.as_str().try_into()?,
+        ssid: PORTAL_SSID
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("portal_ssid_invalid"))?,
+        password: portal_password
+            .as_str()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("portal_password_invalid"))?,
         auth_method: AuthMethod::WPA2Personal,
         channel: 6,
         max_connections: 4,
@@ -215,12 +228,10 @@ fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer
                 password: config.password,
             },
         )?;
-        save_control_plane_url(
-            &mut store
-                .lock()
-                .map_err(|_| anyhow::anyhow!("NVS lock poisoned"))?,
-            &config.control_plane_url,
-        )?;
+        let mut nvs = store
+            .lock()
+            .map_err(|_| anyhow::anyhow!("NVS lock poisoned"))?;
+        save_control_plane_url(&mut nvs, &config.control_plane_url)?;
         request
             .into_ok_response()?
             .write_all(b"saved; connecting to network")?;
