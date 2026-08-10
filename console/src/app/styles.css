@@ -55,6 +55,9 @@ h3 { font-size: clamp(20px, 2.5vw, 26px); font-weight: 650; letter-spacing: -.02
 .page-option { border-bottom: 1px solid rgb(110 110 115 / 20%); min-height: 52px; padding: 6px 0; }
 
 .live-feedback { bottom: 20px; left: 50%; margin: 0; max-width: 560px; position: fixed; transform: translateX(-50%); width: calc(100vw - 32px); z-index: 20; }
+.enrollment-form { display: grid; gap: 10px; }
+.enrollment-form label { color: #1d1d1f; font-size: 14px; font-weight: 600; margin-top: 8px; }
+.enrollment-error { color: #d70015 !important; }
 :where(button, [role="button"], a, input, select, textarea):focus-visible { outline: 3px solid #007aff; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 @media (prefers-contrast: more) { .device-card, .summary-item, .empty-state { border-color: currentColor; } .device-card[data-selected] { box-shadow: 0 0 0 3px currentColor; } }

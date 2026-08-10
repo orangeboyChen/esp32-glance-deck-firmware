@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
 import { DevicePreview } from './device-preview'
+import { EnrollmentDialog } from './enrollment-dialog'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import {
   begin_device_command_atom,
@@ -48,6 +49,7 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
   const [page_configuration, set_page_configuration] = useState<DevicePageConfiguration | null>(null)
   const [page_loading, set_page_loading] = useState(false)
   const [page_saving, set_page_saving] = useState(false)
+  const [enrollment_open, set_enrollment_open] = useState(false)
   const change_locale = (next_locale: 'en' | 'zh-CN' | 'ja') => router.replace(pathname, { locale: next_locale })
 
   const select_device = (device: DeviceSummary) => {
@@ -133,7 +135,7 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
         </Flexbox>
         <Flexbox className="header-actions" horizontal gap={12} wrap="wrap">
           <Segmented aria-label={translate('language')} options={[{ label: 'EN', value: 'en' }, { label: '中文', value: 'zh-CN' }, { label: '日本語', value: 'ja' }]} onChange={(value) => change_locale(value as 'en' | 'zh-CN' | 'ja')} value={locale} />
-          <Button aria-label={translate('addDevice')} icon={Plus} size="large" type="primary">
+          <Button aria-label={translate('addDevice')} icon={Plus} onClick={() => set_enrollment_open(true)} size="large" type="primary">
             {translate('addDevice')}
           </Button>
         </Flexbox>
@@ -179,7 +181,7 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
             emoji="🖥️"
             title={translate('noDevices')}
             description={translate('noDevicesDescription')}
-            action={<Button icon={Plus} type="primary">{translate('addDevice')}</Button>}
+            action={<Button icon={Plus} onClick={() => set_enrollment_open(true)} type="primary">{translate('addDevice')}</Button>}
           />
         ) : (
           <Flexbox className="device-list" gap={16}>
@@ -284,6 +286,7 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
           type={command_feedback.phase === 'error' ? 'error' : command_feedback.phase === 'accepted' ? 'success' : 'info'}
         />
       )}
+      <EnrollmentDialog open={enrollment_open} onClose={() => set_enrollment_open(false)} />
     </main>
   )
 }
