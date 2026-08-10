@@ -43,12 +43,45 @@ pub fn maintenance_frame(message: &str) -> Result<Vec<u8>, &'static str> {
     Ok(frame)
 }
 
+pub fn wifi_setup_frame(password: &str) -> Result<Vec<u8>, &'static str> {
+    if password.len() != 10
+        || !password
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+    {
+        return Err("wifi_password_invalid");
+    }
+    let mut frame = vec![0_u8; DISPLAY_IMAGE_BYTES];
+    rectangle(&mut frame, 12, 12, DISPLAY_WIDTH - 24, DISPLAY_HEIGHT - 24);
+    draw_centered_text(&mut frame, "WIFI SETUP", 54, 3);
+    draw_centered_text(&mut frame, password, 174, 3);
+    Ok(frame)
+}
+
+fn draw_centered_text(frame: &mut [u8], text: &str, top: usize, scale: usize) {
+    let glyph_width = 5 * scale;
+    let spacing = scale;
+    let total_width = text.len() * (glyph_width + spacing) - spacing;
+    let left = (DISPLAY_WIDTH - total_width.min(DISPLAY_WIDTH)) / 2;
+    for (index, byte) in text.bytes().enumerate() {
+        draw_glyph(
+            frame,
+            left + index * (glyph_width + spacing),
+            top,
+            byte,
+            scale,
+        );
+    }
+}
+
 fn draw_glyph(frame: &mut [u8], left: usize, top: usize, character: u8, scale: usize) {
     let rows = match character {
         b'A' => [0x0e, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11],
         b'C' => [0x0f, 0x10, 0x10, 0x10, 0x10, 0x10, 0x0f],
         b'D' => [0x1e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1e],
         b'E' => [0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x1f],
+        b'F' => [0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10],
+        b'G' => [0x0f, 0x10, 0x10, 0x17, 0x11, 0x11, 0x0f],
         b'H' => [0x11, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11],
         b'I' => [0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1f],
         b'L' => [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1f],
@@ -57,6 +90,9 @@ fn draw_glyph(frame: &mut [u8], left: usize, top: usize, character: u8, scale: u
         b'O' => [0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e],
         b'S' => [0x0f, 0x10, 0x10, 0x0e, 0x01, 0x01, 0x1e],
         b'T' => [0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
+        b'U' => [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e],
+        b'W' => [0x11, 0x11, 0x11, 0x15, 0x15, 0x1b, 0x11],
+        b'P' => [0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10],
         b'X' => [0x11, 0x11, 0x0a, 0x04, 0x0a, 0x11, 0x11],
         b'3' => [0x1e, 0x01, 0x01, 0x0e, 0x01, 0x01, 0x1e],
         b' ' => [0; 7],
@@ -153,5 +189,17 @@ mod tests {
             Err("maintenance_message_invalid")
         );
         assert_eq!(maintenance_frame(""), Err("maintenance_message_invalid"));
+    }
+
+    #[test]
+    fn renders_wifi_setup_credentials_without_accepting_unsafe_passwords() {
+        let frame = wifi_setup_frame("GD12AB34EF").unwrap();
+        assert_eq!(frame.len(), DISPLAY_IMAGE_BYTES);
+        assert!(frame.iter().any(|byte| *byte != 0));
+        assert_eq!(wifi_setup_frame("short"), Err("wifi_password_invalid"));
+        assert_eq!(
+            wifi_setup_frame("GD12-ab34EF"),
+            Err("wifi_password_invalid")
+        );
     }
 }

@@ -15,7 +15,7 @@ use glance_deck_firmware::{
     esp_ota::{mark_running_image_healthy, EspHttpsOtaTransport, InactiveOtaWriter},
     esp_storage::{DisplayStorage, HttpsPageDownloader},
     flash_cache::FlashDisplayCache,
-    local_screen::maintenance_frame,
+    local_screen::{maintenance_frame, wifi_setup_frame},
     mqtt::{
         DeviceState, Device_command, Device_command_action, Mqtt_client, Ota_check_state,
         Ota_check_status, Ota_command, Ota_phase, Ota_state,
@@ -36,8 +36,16 @@ fn main() -> Result<()> {
     let network_runtime = start_network()?;
     let (_wifi, partition) = match network_runtime {
         NetworkRuntime::Connected { wifi, partition } => (wifi, partition),
-        NetworkRuntime::Provisioning { wifi, _portal } => {
+        NetworkRuntime::Provisioning {
+            wifi,
+            _portal,
+            portal_password,
+        } => {
             info!("Wi-Fi provisioning portal is active");
+            let mut renderer = RlcdRenderer::new()?;
+            let frame =
+                wifi_setup_frame(&portal_password).map_err(|error| anyhow::anyhow!(error))?;
+            renderer.flush_frame(&frame)?;
             return wait_for_restart_with_portal(wifi, _portal);
         }
     };

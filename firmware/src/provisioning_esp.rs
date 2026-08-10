@@ -38,6 +38,7 @@ pub enum NetworkRuntime {
     Provisioning {
         wifi: BlockingWifi<EspWifi<'static>>,
         _portal: EspHttpServer<'static>,
+        portal_password: String,
     },
 }
 
@@ -122,7 +123,7 @@ fn start_portal(
     mut wifi: BlockingWifi<EspWifi<'static>>,
     partition: EspDefaultNvsPartition,
 ) -> Result<NetworkRuntime> {
-    let portal_password = format!("GD{:08x}", unsafe { esp_idf_svc::sys::esp_random() });
+    let portal_password = format!("GD{:08X}", unsafe { esp_idf_svc::sys::esp_random() });
     wifi.set_configuration(&Configuration::AccessPoint(AccessPointConfiguration {
         ssid: PORTAL_SSID.try_into()?,
         password: portal_password.as_str().try_into()?,
@@ -147,6 +148,7 @@ fn start_portal(
     Ok(NetworkRuntime::Provisioning {
         wifi,
         _portal: portal,
+        portal_password,
     })
 }
 
