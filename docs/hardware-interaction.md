@@ -12,8 +12,9 @@ debounces it before acting.
 | Gesture | Result | Feedback |
 | --- | --- | --- |
 | Short press | Advance one enabled cached page in the configured order. | The selected cached frame flushes first. A bottom page indicator appears for 2 seconds. Publish state only after the flush succeeds. |
-| Long press | Enter the local maintenance page. | State is visible as text, an icon, and an optional audio cue. It never changes Wi-Fi, credentials, or firmware by itself. |
-| Second long press in maintenance | Request Wi-Fi reprovisioning confirmation. | Show the temporary AP name and password before the portal starts. A short press cancels and returns to the last page. |
+| First long press | Enter the local maintenance overview. | State is visible as text, an icon, and an optional audio cue. It never changes Wi-Fi, credentials, or firmware by itself. |
+| Second long press in maintenance | Present `Start Wi-Fi setup?` confirmation. | The screen presents the primary action and a visible `Cancel` action. A short press cancels and returns to the last page. |
+| Third long press at confirmation | Start temporary Wi-Fi setup. | Show the temporary AP name and password before the portal starts. A short press still cancels and restores the last release page. |
 
 The normal page order is `usage`, `alerts` (when an alert is active), `home`,
 `environment`, then `system`. The control plane must keep this a flat list of
@@ -43,7 +44,9 @@ separate physical recovery flow.
 
 First boot and failed station reconnect start a WPA2 SoftAP with a random
 per-start password. The maintenance page displays both the SSID and password
-as text and QR data. The captive portal accepts one candidate network.
+as text and QR data. The captive portal accepts one candidate network. Active
+reprovisioning uses the three-step maintenance flow above; it is never started
+by a single long press or a remote page command.
 
 The candidate is persisted separately. On reboot it must obtain a DHCP address
 before it replaces `wifi_active` in NVS. A failure leaves `wifi_active`, every

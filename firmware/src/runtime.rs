@@ -3,13 +3,19 @@ use crate::mqtt::{Command_status, DeviceState, Device_command, Device_command_ac
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Local_screen {
     Release { page_id: String },
-    Maintenance,
+    Maintenance { phase: MaintenancePhase },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MaintenancePhase {
+    Overview,
+    ConfirmReprovisioning,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReprovisioningState {
     Inactive,
-    ConfirmationRequired,
+    PortalStarting,
     PortalActive { ssid: String, password: String },
 }
 
@@ -18,6 +24,7 @@ pub enum FeedbackKind {
     PageChanged,
     MaintenanceEntered,
     ReprovisionConfirmation,
+    MaintenanceCancelled,
     Offline,
     Error { message: String },
 }
@@ -26,6 +33,7 @@ pub enum FeedbackKind {
 pub struct Device_runtime {
     enabled_pages: Vec<String>,
     page_index: usize,
+    last_release_page: String,
     pub screen: Local_screen,
     pub reprovisioning: ReprovisioningState,
     indicator_deadline_ms: Option<u64>,
@@ -41,6 +49,7 @@ impl Device_runtime {
         Self {
             enabled_pages,
             page_index: 0,
+            last_release_page: first_page.clone(),
             screen: Local_screen::Release {
                 page_id: first_page,
             },
@@ -51,6 +60,10 @@ impl Device_runtime {
     }
 
     pub fn short_key_press(&mut self) {
+        if matches!(self.screen, Local_screen::Maintenance { .. }) {
+            self.cancel_maintenance();
+            return;
+        }
         if self.enabled_pages.is_empty() {
             return;
         }
@@ -58,23 +71,37 @@ impl Device_runtime {
         self.screen = Local_screen::Release {
             page_id: self.enabled_pages[self.page_index].clone(),
         };
+        self.last_release_page = self.enabled_pages[self.page_index].clone();
         self.feedback = Some(FeedbackKind::PageChanged);
     }
 
     pub fn long_key_press(&mut self) {
-        self.screen = Local_screen::Maintenance;
-        self.feedback = Some(FeedbackKind::MaintenanceEntered);
-        if self.reprovisioning == ReprovisioningState::Inactive {
-            self.reprovisioning = ReprovisioningState::ConfirmationRequired;
+        match self.screen {
+            Local_screen::Release { ref page_id } => {
+                self.last_release_page = page_id.clone();
+                self.screen = Local_screen::Maintenance {
+                    phase: MaintenancePhase::Overview,
+                };
+                self.feedback = Some(FeedbackKind::MaintenanceEntered);
+            }
+            Local_screen::Maintenance {
+                phase: MaintenancePhase::Overview,
+            } => {
+                self.screen = Local_screen::Maintenance {
+                    phase: MaintenancePhase::ConfirmReprovisioning,
+                };
+                self.feedback = Some(FeedbackKind::ReprovisionConfirmation);
+            }
+            Local_screen::Maintenance {
+                phase: MaintenancePhase::ConfirmReprovisioning,
+            } => {
+                self.reprovisioning = ReprovisioningState::PortalStarting;
+            }
         }
     }
 
-    pub fn confirm_reprovisioning(
-        &mut self,
-        ssid: String,
-        password: String,
-    ) -> Result<(), &'static str> {
-        if self.reprovisioning != ReprovisioningState::ConfirmationRequired {
+    pub fn portal_started(&mut self, ssid: String, password: String) -> Result<(), &'static str> {
+        if self.reprovisioning != ReprovisioningState::PortalStarting {
             return Err("reprovisioning_not_confirmed");
         }
         self.reprovisioning = ReprovisioningState::PortalActive { ssid, password };
@@ -84,6 +111,15 @@ impl Device_runtime {
 
     pub fn finish_reprovisioning(&mut self) {
         self.reprovisioning = ReprovisioningState::Inactive;
+        self.cancel_maintenance();
+    }
+
+    pub fn cancel_maintenance(&mut self) {
+        self.reprovisioning = ReprovisioningState::Inactive;
+        self.screen = Local_screen::Release {
+            page_id: self.last_release_page.clone(),
+        };
+        self.feedback = Some(FeedbackKind::MaintenanceCancelled);
     }
 
     pub fn show_page_indicator_until(&mut self, now_ms: u64) {
@@ -109,6 +145,7 @@ impl Device_runtime {
                 self.screen = Local_screen::Release {
                     page_id: page_id.clone(),
                 };
+                self.last_release_page = page_id.clone();
             }
             Device_command_action::Next_page => self.short_key_press(),
             Device_command_action::Enter_maintenance => self.long_key_press(),
@@ -128,7 +165,7 @@ impl Device_runtime {
     ) -> DeviceState {
         let page_id = match &self.screen {
             Local_screen::Release { page_id } => page_id.clone(),
-            Local_screen::Maintenance => "system".to_owned(),
+            Local_screen::Maintenance { .. } => "system".to_owned(),
         };
         let (command_status, error_message) = match result {
             Ok(()) => (Some(Command_status::Confirmed), None),
@@ -154,7 +191,7 @@ mod tests {
     use crate::mqtt::Command_payload;
 
     #[test]
-    fn key_press_cycles_pages_and_long_press_opens_maintenance() {
+    fn key_press_cycles_pages_and_requires_three_long_presses_for_portal() {
         let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "alerts".to_owned()]);
         runtime.short_key_press();
         assert_eq!(
@@ -164,15 +201,43 @@ mod tests {
             }
         );
         runtime.long_key_press();
-        assert_eq!(runtime.screen, Local_screen::Maintenance);
         assert_eq!(
-            runtime.reprovisioning,
-            ReprovisioningState::ConfirmationRequired
+            runtime.screen,
+            Local_screen::Maintenance {
+                phase: MaintenancePhase::Overview
+            }
         );
+        assert_eq!(runtime.reprovisioning, ReprovisioningState::Inactive);
+        runtime.long_key_press();
         assert_eq!(
-            runtime.confirm_reprovisioning("GlanceDeck-Setup".to_owned(), "secret".to_owned()),
+            runtime.screen,
+            Local_screen::Maintenance {
+                phase: MaintenancePhase::ConfirmReprovisioning
+            }
+        );
+        runtime.long_key_press();
+        assert_eq!(runtime.reprovisioning, ReprovisioningState::PortalStarting);
+        assert_eq!(
+            runtime.portal_started("GlanceDeck-Setup".to_owned(), "secret".to_owned()),
             Ok(())
         );
+    }
+
+    #[test]
+    fn short_press_cancels_maintenance_and_restores_last_release() {
+        let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "home".to_owned()]);
+        runtime.short_key_press();
+        runtime.long_key_press();
+        runtime.long_key_press();
+        runtime.short_key_press();
+        assert_eq!(
+            runtime.screen,
+            Local_screen::Release {
+                page_id: "home".to_owned()
+            }
+        );
+        assert_eq!(runtime.reprovisioning, ReprovisioningState::Inactive);
+        assert_eq!(runtime.feedback, Some(FeedbackKind::MaintenanceCancelled));
     }
 
     #[test]
@@ -231,7 +296,12 @@ mod tests {
             payload: Command_payload::default(),
         };
         assert_eq!(runtime.apply_command(&maintenance), Ok(()));
-        assert_eq!(runtime.screen, Local_screen::Maintenance);
+        assert_eq!(
+            runtime.screen,
+            Local_screen::Maintenance {
+                phase: MaintenancePhase::Overview
+            }
+        );
         let missing = Device_command {
             command_id: "missing".to_owned(),
             action: Device_command_action::Show_page,
