@@ -8,6 +8,10 @@ rust-version = "1.84"
 esp_idf_version = "v5.3.1"
 sdkconfig_defaults = ["sdkconfig.defaults"]
 
+[[package.metadata.esp-idf-sys.extra_components]]
+bindings_header = "components/rlcd/include/rlcd.h"
+component_dirs = ["components/rlcd"]
+
 [features]
 default = []
 esp = ["dep:anyhow", "dep:esp-idf-hal", "dep:esp-idf-svc", "dep:esp-idf-sys", "dep:log"]
@@ -22,6 +26,7 @@ log = { version = "0.4", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+hex = "0.4"
 
 [build-dependencies]
 embuild = { version = "0.32", features = ["espidf"] }
