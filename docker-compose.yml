@@ -1,0 +1,67 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: console/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://glance_deck:glance_deck@postgres:5432/glance_deck
+      MQTT_URL: mqtt://mosquitto:1883
+      APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+
+  worker:
+    build:
+      context: .
+      dockerfile: console/Dockerfile
+    command: bun --cwd console worker
+    environment:
+      DATABASE_URL: postgresql://glance_deck:glance_deck@postgres:5432/glance_deck
+      MQTT_URL: mqtt://mosquitto:1883
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+
+  migrate:
+    build:
+      context: .
+      dockerfile: console/Dockerfile
+    command: bun --cwd console db:migrate
+    environment:
+      DATABASE_URL: postgresql://glance_deck:glance_deck@postgres:5432/glance_deck
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: glance_deck
+      POSTGRES_USER: glance_deck
+      POSTGRES_PASSWORD: glance_deck
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glance_deck -d glance_deck"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+
+volumes:
+  postgres_data:
+  mosquitto_data:

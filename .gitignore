@@ -9,3 +9,5 @@ node_modules/
 .next/
 
 firmware/.embuild/
+home-assistant/**/__pycache__/
+*.pyc

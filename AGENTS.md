@@ -16,12 +16,11 @@ credentials.
 - `home-assistant/`: MQTT discovery, dashboard, and automation examples.
 - `docs/`: protocol and hardware documentation.
 
-## Language and Git workflow
+## Git workflow
 
-- Write all repository content in English, including code, comments, commit
-  messages, documentation, user-facing console text, and Home Assistant text.
-- Use Conventional Commits for every commit, for example `feat(console): add
-  device preview API` or `chore(devcontainer): add ESP-Rust toolchain`.
+- Use English Conventional Commit messages for every commit, for example
+  `feat(console): add device preview API` or
+  `chore(devcontainer): add ESP-Rust toolchain`.
 - Commit and push each verified, coherent implementation milestone promptly.
 - Do not include the local-only `plan.md` in commits unless the user explicitly
   asks for it.
