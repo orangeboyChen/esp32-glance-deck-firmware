@@ -1,10 +1,11 @@
 import { isIP } from 'node:net'
 import { lookup } from 'node:dns/promises'
 
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 
 import { db } from './db'
 import { decrypt_secret } from './secrets'
+import { publish_source_changes } from './source-publisher'
 import { source_snapshots, usage_sources } from './schema'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -74,10 +75,14 @@ export async function refresh_usage_source(source_id: string) {
     if (raw.length > MAX_RESPONSE_BYTES) throw new Error('source_response_too_large')
     const parsed: unknown = JSON.parse(raw)
     const values = Object.fromEntries(fields.map((field) => [field, source.mapper[field] ? json_path(parsed, source.mapper[field]) : null])) as Record<string, MappedValue>
+    const previous = await db.select({ values: source_snapshots.values }).from(source_snapshots)
+      .where(eq(source_snapshots.source_id, source_id)).orderBy(desc(source_snapshots.fetched_at)).limit(1)
+    const changed = JSON.stringify(previous[0]?.values ?? null) !== JSON.stringify(values)
     await db.transaction(async (transaction) => {
       await transaction.insert(source_snapshots).values({ source_id, values, response_preview: redact_response(raw, secrets).slice(0, 2048) })
       await transaction.update(usage_sources).set({ status: 'active', last_success_at: new Date(), last_error: null }).where(eq(usage_sources.id, source_id))
     })
+    if (changed) await publish_source_changes(source_id, values)
     return values
   } catch (error) {
     const message = error instanceof Error ? error.message : 'source_refresh_failed'

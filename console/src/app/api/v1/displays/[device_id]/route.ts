@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 
 import { require_api_scope } from '@/server/auth'
 import { db } from '@/server/db'
@@ -18,6 +18,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ devi
       version: display_releases.version,
       page_id: display_releases.page_id,
       document: display_releases.document,
+      image_format: display_releases.image_format,
+      image_width: display_releases.image_width,
+      image_height: display_releases.image_height,
+      image_bytes: sql<number>`octet_length(${display_releases.device_image})`,
       content_sha256: display_releases.content_sha256,
       created_at: display_releases.created_at,
     })

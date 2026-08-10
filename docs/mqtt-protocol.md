@@ -5,33 +5,31 @@ All topics use `glance_deck/<device_id>/`.
 
 | Topic suffix | Direction | Retained | Purpose |
 | --- | --- | --- | --- |
-| `display` | HA to device | Yes | Current display document |
+| `release` | Control plane to device | Yes | Current immutable display bitmap |
 | `command` | HA to device | No | Immediate action |
 | `state` | Device to control plane | Yes | Connectivity and UI state |
 | `availability` | Device to control plane | Yes | `online` or `offline` |
 | `ota` | Control plane to device | No | Signed remote OTA job |
 | `ota/state` | Device to control plane | Yes | OTA progress and result |
 
-## Display document
+## Display release
 
-The device must reject unknown document versions and payloads larger than its
-configured limit. A later revision can add widgets without changing commands.
+The control plane is the only renderer. It rasterizes all text, including CJK,
+with its bundled font and sends an immutable 1-bit MSB-first image. The ESP32
+must not parse SVG or depend on a font catalog. It must reject unknown document
+versions, image formats, dimensions, hashes, or byte counts.
 
 ```json
 {
-  "version": 1,
-  "title": "AI subscriptions",
-  "updated_at": "2026-08-09T18:00:00+08:00",
-  "pages": [
-    {
-      "id": "usage",
-      "title": "Usage",
-      "widgets": [
-        {"type": "gauge", "label": "Today", "value": 72, "unit": "%"},
-        {"type": "text", "label": "Weekly", "value": "41% used"}
-      ]
-    }
-  ]
+  "release_id": "b39d5ac2-8ff6-4b7c-95fd-31d243e58e11",
+  "document_version": 1,
+  "image_format": "mono1-msb",
+  "image_width": 400,
+  "image_height": 300,
+  "image_url": "https://console.example/api/v1/releases/.../image?signature=...",
+  "image_sha256": "...",
+  "image_bytes": 15000,
+  "active_page_id": "usage"
 }
 ```
 

@@ -8,11 +8,22 @@ import { device_commands, devices, ota_jobs } from './schema'
 let mqtt_client: MqttClient | undefined
 let state_consumer_started = false
 
+export function validate_mqtt_url(url: string, allow_plaintext_internal = false) {
+  const parsed = new URL(url)
+  if (parsed.protocol === 'mqtts:' || parsed.protocol === 'wss:') return parsed
+  if (allow_plaintext_internal && (parsed.protocol === 'mqtt:' || parsed.protocol === 'ws:')) return parsed
+  throw new Error('mqtt_tls_required')
+}
+
 function get_client() {
   if (mqtt_client) return mqtt_client
   const url = process.env.MQTT_URL
   if (!url) throw new Error('mqtt_url_missing')
-  mqtt_client = connect(url, { reconnectPeriod: 5_000 })
+  const endpoint = validate_mqtt_url(url, process.env.MQTT_ALLOW_PLAINTEXT_INTERNAL === 'true')
+  mqtt_client = connect(endpoint.toString(), {
+    reconnectPeriod: 5_000,
+    rejectUnauthorized: endpoint.protocol === 'mqtts:' || endpoint.protocol === 'wss:',
+  })
   return mqtt_client
 }
 
@@ -35,11 +46,11 @@ export async function publish_device_ota(device_id: string, job: { id: string; n
   })
 }
 
-export async function publish_device_release(device_id: string, release: { id: string; version: number; page_id: string; image_sha256: string; image_bytes: number }) {
+export async function publish_device_release(device_id: string, release: { id: string; version: number; page_id: string; image_format: string; image_width: number; image_height: number; image_sha256: string; image_bytes: number }) {
   const client = get_client()
   const base_url = process.env.DEVICE_ASSET_URL ?? process.env.APP_URL
   if (!base_url?.startsWith('https://')) throw new Error('device_asset_url_https_required')
-  const message = JSON.stringify({ release_id: release.id, document_version: 1, image_url: signed_release_image_url(base_url, release.id), image_sha256: release.image_sha256, image_bytes: release.image_bytes, active_page_id: release.page_id })
+  const message = JSON.stringify({ release_id: release.id, document_version: 1, image_format: release.image_format, image_width: release.image_width, image_height: release.image_height, image_url: signed_release_image_url(base_url, release.id), image_sha256: release.image_sha256, image_bytes: release.image_bytes, active_page_id: release.page_id })
   await new Promise<void>((resolve, reject) => client.publish(`${TOPIC_PREFIX}/${device_id}/release`, message, { qos: 1, retain: true }, (error) => error ? reject(error) : resolve()))
 }
 

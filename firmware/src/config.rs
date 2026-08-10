@@ -56,7 +56,7 @@ impl DeviceConfig {
             return Err(ConfigError::Mqtt_host_too_long);
         }
         if !(self.mqtt.broker_url.starts_with("mqtts://")
-            || self.mqtt.broker_url.starts_with("ssl://"))
+            || self.mqtt.broker_url.starts_with("wss://"))
         {
             return Err(ConfigError::Insecure_mqtt_url);
         }

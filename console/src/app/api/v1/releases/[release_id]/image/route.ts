@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rele
   const signed_request = verify_release_image_signature(release_id, url.searchParams.get('expires_at'), url.searchParams.get('signature'))
   if (!signed_request && !await require_api_scope(request, 'devices:read')) return new NextResponse('unauthorized', { status: 401 })
   if (!db) return new NextResponse('database_unavailable', { status: 503 })
-  const [release] = await db.select({ preview_svg: display_releases.preview_svg, content_sha256: display_releases.content_sha256 }).from(display_releases).where(eq(display_releases.id, release_id)).limit(1)
+  const [release] = await db.select({ device_image: display_releases.device_image, content_sha256: display_releases.content_sha256 }).from(display_releases).where(eq(display_releases.id, release_id)).limit(1)
   if (!release) return new NextResponse('release_not_found', { status: 404 })
-  return new NextResponse(release.preview_svg, { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'public, immutable, max-age=31536000', etag: `"${release.content_sha256}"` } })
+  return new NextResponse(release.device_image, { headers: { 'content-type': 'application/vnd.glance-deck.mono1', 'cache-control': 'public, immutable, max-age=31536000', etag: `"${release.content_sha256}"` } })
 }
