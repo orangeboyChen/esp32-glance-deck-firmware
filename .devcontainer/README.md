@@ -1,7 +1,7 @@
 # Dev Container firmware workflow
 
 Open this repository in VS Code and run **Dev Containers: Reopen in
-Container**. The image provides ESP-IDF 5.3.1, the Espressif Rust toolchain,
+Container**. The image provides ESP-IDF 5.3.1, the Espressif Rust 1.85 toolchain,
 and `espflash`.
 
 For USB flashing on Linux, attach the board when opening the container and add
