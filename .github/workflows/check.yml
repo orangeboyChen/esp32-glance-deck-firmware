@@ -46,7 +46,7 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           subFolder: .
-          runCmd: . /home/esp/export-esp.sh && cd firmware && rustup run esp cargo build --features esp
+          runCmd: . /home/esp/export-esp.sh && export ESP_IDF_COMPONENT_MANAGER=false && cd firmware && rustup run esp cargo build --features esp
 
   home-assistant:
     name: Home Assistant integration checks
