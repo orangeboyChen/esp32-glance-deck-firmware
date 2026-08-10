@@ -135,6 +135,16 @@ export const devices = pgTable('devices', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const device_enrollment_requests = pgTable('device_enrollment_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  pairing_code_hash: varchar('pairing_code_hash', { length: 64 }).notNull(),
+  claim_secret_hash: varchar('claim_secret_hash', { length: 64 }).notNull(),
+  board_model: varchar('board_model', { length: 64 }).notNull(),
+  claimed_device_id: varchar('claimed_device_id', { length: 64 }).references(() => devices.id, { onDelete: 'set null' }),
+  expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex('device_enrollment_requests_pairing_code_unique').on(table.pairing_code_hash)])
+
 export const device_commands = pgTable('device_commands', {
   id: uuid('id').defaultRandom().primaryKey(),
   device_id: varchar('device_id', { length: 64 }).references(() => devices.id, { onDelete: 'cascade' }).notNull(),
