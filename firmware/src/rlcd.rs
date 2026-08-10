@@ -1,5 +1,6 @@
 use crate::{
     display::DISPLAY_IMAGE_BYTES,
+    local_screen::pairing_code_frame,
     pages::{CachedPage, PageRenderer},
 };
 use anyhow::{bail, Result};
@@ -37,5 +38,10 @@ impl RlcdRenderer {
             bail!("flush Waveshare ST7305 RLCD failed: {result}");
         }
         Ok(())
+    }
+
+    pub fn show_pairing_code(&mut self, pairing_code: &str) -> Result<()> {
+        let frame = pairing_code_frame(pairing_code).map_err(|error| anyhow::anyhow!(error))?;
+        self.flush_frame(&frame)
     }
 }
