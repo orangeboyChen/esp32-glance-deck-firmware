@@ -6,6 +6,8 @@ pub mod enrollment;
 #[cfg(feature = "esp")]
 pub mod esp_config;
 #[cfg(feature = "esp")]
+pub mod esp_enrollment;
+#[cfg(feature = "esp")]
 pub mod esp_mqtt;
 #[cfg(feature = "esp")]
 pub mod esp_storage;
