@@ -10,6 +10,7 @@ use glance_deck_firmware::{
     esp_storage::{DisplayStorage, HttpsPageDownloader},
     flash_cache::FlashDisplayCache,
     mqtt::{DeviceState, Device_command, Device_command_action},
+    power::{Power_provider, Unavailable_power_provider},
     provisioning_esp::{restart_requested, start_network, NetworkRuntime},
     release_sync::{synchronize_page, synchronize_release},
     rlcd::RlcdRenderer,
@@ -35,6 +36,7 @@ fn main() -> Result<()> {
     let mut downloader = HttpsPageDownloader::new();
     let mut mqtt = EspDeviceMqtt::connect(&config.mqtt, &config.device_id)?;
     let mut key = KeyButton::new()?;
+    let mut power = Unavailable_power_provider;
     let mut current_page_id = cache
         .current_release()?
         .map(|release| release.active_page_id);
@@ -56,6 +58,7 @@ fn main() -> Result<()> {
                     &release,
                     &page_id,
                     None,
+                    &mut power,
                 ) {
                     warn!("local page change retained prior frame: {error:#}");
                 } else {
@@ -80,6 +83,7 @@ fn main() -> Result<()> {
                                 &release.active_page_id,
                                 None,
                                 true,
+                                &mut power,
                             )
                         })() {
                             Ok(()) => {
@@ -127,6 +131,7 @@ fn main() -> Result<()> {
                                 &command.command_id,
                                 false,
                                 Some("command_not_available"),
+                                &mut power,
                             )?;
                             continue;
                         };
@@ -142,6 +147,7 @@ fn main() -> Result<()> {
                                         &page_id,
                                         Some(&command.command_id),
                                         true,
+                                        &mut power,
                                     )
                                 });
                         if let Err(error) = result {
@@ -153,6 +159,7 @@ fn main() -> Result<()> {
                                 &command.command_id,
                                 false,
                                 Some("page_not_available"),
+                                &mut power,
                             )?;
                         } else {
                             current_page_id = Some(page_id);
@@ -201,6 +208,7 @@ fn render_cached_page(
     release: &DisplayRelease,
     page_id: &str,
     command_id: Option<&str>,
+    power: &mut impl Power_provider,
 ) -> Result<()> {
     let page = release.page(page_id).context("requested page missing")?;
     let frame = cache
@@ -208,7 +216,7 @@ fn render_cached_page(
         .context("requested frame is not cached")?;
     page.validate_image(&frame)?;
     renderer.flush_frame(&frame)?;
-    publish_state(mqtt, release, page_id, command_id, true, None)
+    publish_state(mqtt, release, page_id, command_id, true, None, power)
 }
 
 fn render_and_report(
@@ -219,6 +227,7 @@ fn render_and_report(
     page_id: &str,
     command_id: Option<&str>,
     confirmed: bool,
+    power: &mut impl Power_provider,
 ) -> Result<()> {
     let page = release.page(page_id).context("requested page missing")?;
     let frame = cache
@@ -226,7 +235,7 @@ fn render_and_report(
         .context("requested frame missing")?;
     page.validate_image(&frame)?;
     renderer.flush_frame(&frame)?;
-    publish_state(mqtt, release, page_id, command_id, confirmed, None)
+    publish_state(mqtt, release, page_id, command_id, confirmed, None, power)
 }
 
 fn publish_state(
@@ -236,6 +245,7 @@ fn publish_state(
     command_id: Option<&str>,
     confirmed: bool,
     error_message: Option<&str>,
+    power: &mut impl Power_provider,
 ) -> Result<()> {
     let state = DeviceState {
         version: 1,
@@ -253,7 +263,7 @@ fn publish_state(
         }),
         error_message: error_message.map(str::to_owned),
         firmware_version: Some(env!("CARGO_PKG_VERSION").to_owned()),
-        power: None,
+        power: Some(power.sample()),
     };
     let payload = serde_json::to_vec(&state)?;
     glance_deck_firmware::mqtt::Mqtt_client::publish(mqtt, &mqtt.topics().state(), &payload, true)?;
@@ -267,6 +277,7 @@ fn publish_command_result(
     command_id: &str,
     confirmed: bool,
     error_message: Option<&str>,
+    power: &mut impl Power_provider,
 ) -> Result<()> {
     let state = DeviceState {
         version: 1,
@@ -282,7 +293,7 @@ fn publish_command_result(
         }),
         error_message: error_message.map(str::to_owned),
         firmware_version: Some(env!("CARGO_PKG_VERSION").to_owned()),
-        power: None,
+        power: Some(power.sample()),
     };
     let payload = serde_json::to_vec(&state)?;
     glance_deck_firmware::mqtt::Mqtt_client::publish(mqtt, &mqtt.topics().state(), &payload, true)?;

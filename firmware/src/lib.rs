@@ -12,6 +12,7 @@ pub mod flash_cache;
 pub mod mqtt;
 pub mod page_controller;
 pub mod pages;
+pub mod power;
 pub mod provisioning;
 #[cfg(feature = "esp")]
 pub mod provisioning_esp;

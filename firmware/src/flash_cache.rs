@@ -166,7 +166,8 @@ mod tests {
 
     fn test_root() -> PathBuf {
         std::env::temp_dir().join(format!(
-            "glance-deck-cache-{}",
+            "glance-deck-cache-{}-{}",
+            std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
