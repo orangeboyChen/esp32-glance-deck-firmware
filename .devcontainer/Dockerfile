@@ -13,7 +13,8 @@ USER esp
 ENV CARGO_HOME=/home/esp/.cargo
 ENV PATH=/home/esp/.cargo/bin:${PATH}
 
-RUN curl --proto '=https' --tlsv1.2 -fsSL https://github.com/esp-rs/espup/releases/latest/download/espup-x86_64-unknown-linux-gnu -o /home/esp/.cargo/bin/espup \
+RUN mkdir -p /home/esp/.cargo/bin \
+    && curl --proto '=https' --tlsv1.2 -fsSL https://github.com/esp-rs/espup/releases/latest/download/espup-x86_64-unknown-linux-gnu -o /home/esp/.cargo/bin/espup \
     && chmod +x /home/esp/.cargo/bin/espup \
     && espup install \
     && . /home/esp/export-esp.sh \

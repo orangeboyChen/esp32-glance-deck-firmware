@@ -55,7 +55,16 @@ pub struct Device_command {
     pub command_id: String,
     pub action: Device_command_action,
     #[serde(default)]
+    pub payload: Command_payload,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Command_payload {
+    #[serde(default)]
     pub page_id: Option<String>,
+    #[serde(default)]
+    pub rotation_seconds: Option<u16>,
 }
 
 impl Device_command {
@@ -78,6 +87,58 @@ pub struct DeviceState {
     pub wifi_rssi: i16,
     pub display_release_id: Option<String>,
     pub display_updated_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_status: Option<Command_status>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub firmware_version: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Command_status {
+    Confirmed,
+    Failed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Ota_command {
+    pub job_id: String,
+    pub nonce: String,
+    pub version: String,
+    pub manifest_url: String,
+    pub image_sha256: String,
+}
+
+impl Ota_command {
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.job_id.is_empty()
+            || self.job_id.len() > 96
+            || self.nonce.is_empty()
+            || self.nonce.len() > 128
+        {
+            return Err("ota_identifiers_invalid");
+        }
+        if !self.manifest_url.starts_with("https://")
+            || self.version.is_empty()
+            || self.version.len() > 64
+        {
+            return Err("ota_manifest_invalid");
+        }
+        if self.image_sha256.len() != 64
+            || !self
+                .image_sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err("ota_hash_invalid");
+        }
+        Ok(())
+    }
 }
 
 pub trait Mqtt_client {
@@ -100,17 +161,31 @@ mod tests {
 
     #[test]
     fn parses_supported_command() {
-        let command: Device_command =
-            serde_json::from_str(r#"{"command_id":"abc","action":"show_page","page_id":"usage"}"#)
-                .unwrap();
+        let command: Device_command = serde_json::from_str(
+            r#"{"command_id":"abc","action":"show_page","payload":{"page_id":"usage"}}"#,
+        )
+        .unwrap();
         assert_eq!(command.action, Device_command_action::Show_page);
+        assert_eq!(command.payload.page_id.as_deref(), Some("usage"));
     }
 
     #[test]
     fn rejects_unknown_command_fields() {
         assert!(Device_command::from_payload(
-            br#"{"command_id":"abc","action":"next_page","unexpected":true}"#
+            br#"{"command_id":"abc","action":"next_page","payload":{"unexpected":true}}"#
         )
         .is_err());
+    }
+
+    #[test]
+    fn validates_remote_ota_command() {
+        let command = Ota_command {
+            job_id: "job-123".to_owned(),
+            nonce: "nonce".to_owned(),
+            version: "1.0.0".to_owned(),
+            manifest_url: "https://releases.example/manifest.json".to_owned(),
+            image_sha256: "a".repeat(64),
+        };
+        assert_eq!(command.validate(), Ok(()));
     }
 }
