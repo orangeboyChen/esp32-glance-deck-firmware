@@ -112,7 +112,7 @@ export function SourcesManager() {
     </header>
 
     <section className="sources-section" aria-labelledby="sources-heading">
-      <Flexbox horizontal align="center" justify="space-between" wrap="wrap" gap={12}><h2 id="sources-heading">{translate('savedSources')}</h2><Button icon={RefreshCw} onClick={() => void load_sources}>{translate('refresh')}</Button></Flexbox>
+      <Flexbox horizontal align="center" justify="space-between" wrap="wrap" gap={12}><h2 id="sources-heading">{translate('savedSources')}</h2><Button icon={RefreshCw} onClick={() => void load_sources()}>{translate('refresh')}</Button></Flexbox>
       {loading ? <Text>{translate('loading')}</Text> : sources.length === 0 ? <Empty className="empty-state" emoji="◌" title={translate('noSources')} description={translate('noSourcesDescription')} /> : <Flexbox gap={10}>{sources.map((source) => <Block className="source-row" key={source.id} variant="outlined"><Flexbox gap={3}><Flexbox horizontal align="center" justify="space-between" wrap="wrap" gap={8}><h3>{source.name}</h3><Tag>{source.status}</Tag></Flexbox><Text type="secondary">{source.method} {source.base_url}{source.request_path}</Text><Text type="secondary">{translate('cadence', { seconds: source.refresh_interval_seconds })}</Text>{source.last_error && <Text type="danger">{source.last_error}</Text>}</Flexbox><Button icon={Play} loading={testing_id === source.id} onClick={() => void test_source(source.id)} size="large">{translate('test')}</Button></Block>)}</Flexbox>}
     </section>
 
