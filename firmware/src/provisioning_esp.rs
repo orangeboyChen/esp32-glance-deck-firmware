@@ -17,7 +17,7 @@ use esp_idf_svc::{
 };
 use log::{info, warn};
 
-use crate::config::WifiConfig;
+use crate::{config::WifiConfig, esp_config::save_control_plane_url};
 
 const NVS_NAMESPACE: &str = "glance_deck";
 const ACTIVE_WIFI_KEY: &str = "wifi_active";
@@ -175,11 +175,13 @@ fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer
         }
         let mut payload = vec![0; length];
         request.read_exact(&mut payload)?;
-        let config: WifiConfig = match serde_json::from_slice(&payload) {
+        let config: Portal_config = match serde_json::from_slice(&payload) {
             Ok(config)
                 if !config.ssid.is_empty()
                     && config.ssid.len() <= 32
-                    && config.password.len() <= 64 =>
+                    && config.password.len() <= 64
+                    && config.control_plane_url.starts_with("https://")
+                    && config.control_plane_url.len() <= 256 =>
             {
                 config
             }
@@ -190,7 +192,20 @@ fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer
                 return Ok(());
             }
         };
-        save_wifi_config(&store, CANDIDATE_WIFI_KEY, &config)?;
+        save_wifi_config(
+            &store,
+            CANDIDATE_WIFI_KEY,
+            &WifiConfig {
+                ssid: config.ssid,
+                password: config.password,
+            },
+        )?;
+        save_control_plane_url(
+            &mut store
+                .lock()
+                .map_err(|_| anyhow::anyhow!("NVS lock poisoned"))?,
+            &config.control_plane_url,
+        )?;
         request
             .into_ok_response()?
             .write_all(b"saved; connecting to network")?;
@@ -198,6 +213,13 @@ fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer
         Ok(())
     })?;
     Ok(server)
+}
+
+#[derive(serde::Deserialize)]
+struct Portal_config {
+    ssid: String,
+    password: String,
+    control_plane_url: String,
 }
 
 fn load_wifi_config(partition: &EspDefaultNvsPartition, key: &str) -> Result<Option<WifiConfig>> {
@@ -241,4 +263,4 @@ fn promote_candidate(partition: &EspDefaultNvsPartition, candidate: &WifiConfig)
     Ok(())
 }
 
-const PORTAL_HTML: &str = r#"<!doctype html><html><head><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Glance Deck setup</title></head><body><h1>Glance Deck Wi-Fi</h1><form id=f><label>Network <input name=ssid maxlength=32 required></label><br><label>Password <input name=password type=password maxlength=64></label><br><button>Connect</button></form><p id=s></p><script>f.onsubmit=async e=>{e.preventDefault();s.textContent='Saving…';let r=await fetch('/api/wifi',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(f))) });s.textContent=await r.text()}</script></body></html>"#;
+const PORTAL_HTML: &str = r#"<!doctype html><html><head><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Glance Deck setup</title></head><body><h1>Glance Deck setup</h1><form id=f><label>Network <input name=ssid maxlength=32 required></label><br><label>Password <input name=password type=password maxlength=64></label><br><label>Console URL <input name=control_plane_url type=url placeholder=https://deck.example required></label><br><button>Connect</button></form><p id=s></p><script>f.onsubmit=async e=>{e.preventDefault();s.textContent='Saving…';let r=await fetch('/api/wifi',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(f))) });s.textContent=await r.text()}</script></body></html>"#;

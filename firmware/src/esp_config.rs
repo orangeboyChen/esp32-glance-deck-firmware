@@ -5,7 +5,9 @@ use crate::config::DeviceConfig;
 
 const NVS_NAMESPACE: &str = "glance_deck";
 const DEVICE_CONFIG_KEY: &str = "device_config";
+const CONTROL_PLANE_URL_KEY: &str = "control_plane_url";
 const MAX_DEVICE_CONFIG_BYTES: usize = 768;
+const MAX_CONTROL_PLANE_URL_BYTES: usize = 256;
 
 pub fn load_device_config(partition: &EspDefaultNvsPartition) -> Result<Option<DeviceConfig>> {
     let nvs = EspDefaultNvs::new(partition.clone(), NVS_NAMESPACE, true)?;
@@ -31,5 +33,28 @@ pub fn save_device_config(partition: &EspDefaultNvsPartition, config: &DeviceCon
     }
     let mut nvs = EspDefaultNvs::new(partition.clone(), NVS_NAMESPACE, true)?;
     nvs.set_raw(DEVICE_CONFIG_KEY, &encoded)?;
+    Ok(())
+}
+
+pub fn load_control_plane_url(partition: &EspDefaultNvsPartition) -> Result<Option<String>> {
+    let nvs = EspDefaultNvs::new(partition.clone(), NVS_NAMESPACE, true)?;
+    let mut buffer = [0_u8; MAX_CONTROL_PLANE_URL_BYTES];
+    let Some(value) = nvs.get_raw(CONTROL_PLANE_URL_KEY, &mut buffer)? else {
+        return Ok(None);
+    };
+    let url = std::str::from_utf8(value)
+        .context("decode control plane URL")?
+        .to_owned();
+    if !url.starts_with("https://") || url.len() > MAX_CONTROL_PLANE_URL_BYTES {
+        bail!("control plane URL is invalid")
+    }
+    Ok(Some(url))
+}
+
+pub fn save_control_plane_url(store: &mut EspDefaultNvs, url: &str) -> Result<()> {
+    if !url.starts_with("https://") || url.len() > MAX_CONTROL_PLANE_URL_BYTES {
+        bail!("control plane URL is invalid")
+    }
+    store.set_raw(CONTROL_PLANE_URL_KEY, url.as_bytes())?;
     Ok(())
 }
