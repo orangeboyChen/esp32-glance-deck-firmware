@@ -57,7 +57,8 @@
     "savePages": "ページを保存",
     "pagesSaved": "ページ設定をデバイスに送信しました。",
     "pagesSaveFailed": "ページ設定を保存できません。",
-    "sources": "ソース"
+    "sources": "ソース",
+    "firmware": "ファームウェア"
   },
   "Sources": {
     "eyebrow": "Glance Deck / ソース",
@@ -105,5 +106,36 @@
     "sourceSaved": "ソースを保存しました。",
     "saveFailed": "ソースを保存できません。",
     "source_create_failed": "ソースを保存できません。リクエスト設定を確認してください。"
+  },
+  "Firmware": {
+    "eyebrow": "Glance Deck / ファームウェア",
+    "title": "ファームウェアリリース",
+    "subtitle": "確認済みリリースは互換性のあるデバイスにのみインストールします。デバイスはパーティション切替前にマニフェストとイメージを検証します。",
+    "language": "言語",
+    "back": "デバイス",
+    "verifiedReleases": "確認済みリリース",
+    "refresh": "更新",
+    "loading": "ファームウェアリリースを読み込み中…",
+    "loadFailed": "ファームウェアリリースまたはデバイスを読み込めません。",
+    "noReleases": "確認済みリリースはありません",
+    "noReleasesDescription": "ファームウェアリリース API から署名済みマニフェストを追加してください。",
+    "verified": "確認日時: {date}",
+    "viewManifest": "マニフェストを表示",
+    "compatibleDevices": "互換デバイス",
+    "noCompatibleDevices": "登録済みの互換デバイスはありません。",
+    "deviceVersion": "現在: {version}",
+    "otaStatus": "更新: {status}",
+    "unknown": "不明",
+    "none": "なし",
+    "startUpdate": "更新を開始",
+    "confirmTitle": "ファームウェア更新を開始しますか？",
+    "confirmDescription": "{device} に {version} をキューします。デバイス自身の電源および署名検証に成功した場合だけ適用します。",
+    "confirmWarning": "更新中は電源を切断しないでください。ロールバック用に既知の正常な OTA パーティションを保持します。",
+    "cancel": "キャンセル",
+    "queued": "{device} に {version} をキューしました。",
+    "otaFailed": "ファームウェア更新をキューできません。",
+    "power_unsafe_for_ota": "更新前に USB 電源または 30% 以上のバッテリーが必要です。",
+    "incompatible_release": "このリリースはデバイスに対応していません。",
+    "device_or_release_not_found": "デバイスまたはファームウェアリリースは利用できなくなりました。"
   }
 }

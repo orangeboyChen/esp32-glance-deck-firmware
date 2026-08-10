@@ -57,7 +57,8 @@
     "savePages": "Save pages",
     "pagesSaved": "Page configuration sent to the device.",
     "pagesSaveFailed": "Unable to save page configuration.",
-    "sources": "Sources"
+    "sources": "Sources",
+    "firmware": "Firmware"
   },
   "Sources": {
     "eyebrow": "Glance Deck / Sources",
@@ -105,5 +106,36 @@
     "sourceSaved": "Source saved.",
     "saveFailed": "Unable to save source.",
     "source_create_failed": "Unable to save source. Check the request configuration."
+  },
+  "Firmware": {
+    "eyebrow": "Glance Deck / Firmware",
+    "title": "Firmware releases",
+    "subtitle": "Install a verified release only on compatible devices. The device verifies the manifest and image before switching partitions.",
+    "language": "Language",
+    "back": "Devices",
+    "verifiedReleases": "Verified releases",
+    "refresh": "Refresh",
+    "loading": "Loading firmware releases…",
+    "loadFailed": "Unable to load firmware releases or devices.",
+    "noReleases": "No verified releases",
+    "noReleasesDescription": "Add a signed firmware manifest through the firmware release API.",
+    "verified": "Verified {date}",
+    "viewManifest": "View manifest",
+    "compatibleDevices": "Compatible devices",
+    "noCompatibleDevices": "No compatible devices are registered.",
+    "deviceVersion": "Current: {version}",
+    "otaStatus": "Update: {status}",
+    "unknown": "unknown",
+    "none": "none",
+    "startUpdate": "Start update",
+    "confirmTitle": "Start firmware update?",
+    "confirmDescription": "Queue {version} for {device}. The device will apply it only after its own power and signature checks pass.",
+    "confirmWarning": "Do not disconnect power while an update is running. A known-good OTA partition remains available for rollback.",
+    "cancel": "Cancel",
+    "queued": "Queued {version} for {device}.",
+    "otaFailed": "Unable to queue the firmware update.",
+    "power_unsafe_for_ota": "The device needs USB power or at least 30% battery before updating.",
+    "incompatible_release": "This release is not compatible with the device.",
+    "device_or_release_not_found": "The device or firmware release is no longer available."
   }
 }

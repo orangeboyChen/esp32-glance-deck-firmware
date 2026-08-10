@@ -57,7 +57,8 @@
     "savePages": "保存页面",
     "pagesSaved": "页面配置已下发到设备。",
     "pagesSaveFailed": "无法保存页面配置。",
-    "sources": "数据源"
+    "sources": "数据源",
+    "firmware": "固件"
   },
   "Sources": {
     "eyebrow": "Glance Deck / 数据源",
@@ -105,5 +106,36 @@
     "sourceSaved": "数据源已保存。",
     "saveFailed": "无法保存数据源。",
     "source_create_failed": "无法保存数据源，请检查请求配置。"
+  },
+  "Firmware": {
+    "eyebrow": "Glance Deck / 固件",
+    "title": "固件版本",
+    "subtitle": "仅在兼容设备上安装已验证版本。设备会在切换分区前验证清单和镜像。",
+    "language": "语言",
+    "back": "设备",
+    "verifiedReleases": "已验证版本",
+    "refresh": "刷新",
+    "loading": "正在加载固件版本…",
+    "loadFailed": "无法加载固件版本或设备。",
+    "noReleases": "没有已验证版本",
+    "noReleasesDescription": "请通过固件版本 API 添加已签名的固件清单。",
+    "verified": "验证时间：{date}",
+    "viewManifest": "查看清单",
+    "compatibleDevices": "兼容设备",
+    "noCompatibleDevices": "没有已注册的兼容设备。",
+    "deviceVersion": "当前：{version}",
+    "otaStatus": "更新：{status}",
+    "unknown": "未知",
+    "none": "无",
+    "startUpdate": "开始更新",
+    "confirmTitle": "开始固件更新？",
+    "confirmDescription": "将 {version} 加入 {device} 的更新队列。设备仅会在自身电源和签名验证通过后应用。",
+    "confirmWarning": "更新期间不要断开电源。已知可用 OTA 分区会保留，用于回滚。",
+    "cancel": "取消",
+    "queued": "已将 {version} 加入 {device} 的队列。",
+    "otaFailed": "无法加入固件更新队列。",
+    "power_unsafe_for_ota": "更新前设备需要 USB 电源或至少 30% 电量。",
+    "incompatible_release": "该固件版本与设备不兼容。",
+    "device_or_release_not_found": "设备或固件版本已不可用。"
   }
 }

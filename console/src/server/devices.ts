@@ -6,6 +6,7 @@ import { devices, display_releases, ota_jobs, source_snapshots, usage_sources } 
 export type DeviceSummary = {
   id: string
   name: string
+  board_model: string
   status: 'enrolling' | 'online' | 'offline' | 'error'
   firmware_version: string | null
   active_page_id: string
@@ -29,6 +30,7 @@ export async function list_devices(): Promise<DeviceSummary[]> {
     .select({
       id: devices.id,
       name: devices.name,
+      board_model: devices.board_model,
       status: devices.status,
       firmware_version: devices.firmware_version,
       active_page_id: devices.active_page_id,

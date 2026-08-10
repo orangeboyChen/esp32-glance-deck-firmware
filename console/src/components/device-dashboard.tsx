@@ -1,7 +1,7 @@
 'use client'
 
 import { Alert, Block, Button, Checkbox, Empty, Flexbox, Segmented, Tag, Text, Tooltip, toast } from '@lobehub/ui'
-import { ArrowDown, ArrowUp, CircleAlert, ChevronRight, Database, Monitor, Plus, Radio, RefreshCw, Wifi } from 'lucide-react'
+import { ArrowDown, ArrowUp, CircleAlert, ChevronRight, Cpu, Database, Monitor, Plus, Radio, RefreshCw, Wifi } from 'lucide-react'
 import { useAtom, useSetAtom } from 'jotai'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
@@ -136,6 +136,7 @@ export function DeviceDashboard({ devices }: DeviceDashboardProps) {
         <Flexbox className="header-actions" horizontal gap={12} wrap="wrap">
           <Segmented aria-label={translate('language')} options={[{ label: 'EN', value: 'en' }, { label: '中文', value: 'zh-CN' }, { label: '日本語', value: 'ja' }]} onChange={(value) => change_locale(value as 'en' | 'zh-CN' | 'ja')} value={locale} />
           <Button icon={Database} onClick={() => router.push('/sources')} size="large">{translate('sources')}</Button>
+          <Button icon={Cpu} onClick={() => router.push('/firmware')} size="large">{translate('firmware')}</Button>
           <Button aria-label={translate('addDevice')} icon={Plus} onClick={() => set_enrollment_open(true)} size="large" type="primary">
             {translate('addDevice')}
           </Button>
