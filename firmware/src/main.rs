@@ -73,7 +73,12 @@ fn main() -> Result<()> {
             warn!("OTA boot health confirmation unavailable: {error:#}");
         }
     } else {
-        info!("no cached display release; skipping OTA health confirmation");
+        // A newly enrolled device may not yet have a release. Its local pairing
+        // frame has already been rendered, and Wi-Fi plus MQTT are connected,
+        // which is sufficient for candidate-image health confirmation.
+        if let Err(error) = mark_running_image_healthy() {
+            warn!("OTA boot health confirmation unavailable: {error:#}");
+        }
     }
     info!("device runtime connected as {}", config.device_id);
 
