@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <JotaiProvider>
-      <ThemeProvider themeMode="light">
+      <ThemeProvider themeMode="auto">
         {children}<ToastHost />
       </ThemeProvider>
     </JotaiProvider>

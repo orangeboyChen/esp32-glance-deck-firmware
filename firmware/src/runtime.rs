@@ -7,10 +7,29 @@ pub enum Local_screen {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ReprovisioningState {
+    Inactive,
+    ConfirmationRequired,
+    PortalActive { ssid: String, password: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FeedbackKind {
+    PageChanged,
+    MaintenanceEntered,
+    ReprovisionConfirmation,
+    Offline,
+    Error { message: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Device_runtime {
     enabled_pages: Vec<String>,
     page_index: usize,
     pub screen: Local_screen,
+    pub reprovisioning: ReprovisioningState,
+    indicator_deadline_ms: Option<u64>,
+    pub feedback: Option<FeedbackKind>,
 }
 
 impl Device_runtime {
@@ -25,6 +44,9 @@ impl Device_runtime {
             screen: Local_screen::Release {
                 page_id: first_page,
             },
+            reprovisioning: ReprovisioningState::Inactive,
+            indicator_deadline_ms: None,
+            feedback: None,
         }
     }
 
@@ -36,10 +58,43 @@ impl Device_runtime {
         self.screen = Local_screen::Release {
             page_id: self.enabled_pages[self.page_index].clone(),
         };
+        self.feedback = Some(FeedbackKind::PageChanged);
     }
 
     pub fn long_key_press(&mut self) {
         self.screen = Local_screen::Maintenance;
+        self.feedback = Some(FeedbackKind::MaintenanceEntered);
+        if self.reprovisioning == ReprovisioningState::Inactive {
+            self.reprovisioning = ReprovisioningState::ConfirmationRequired;
+        }
+    }
+
+    pub fn confirm_reprovisioning(
+        &mut self,
+        ssid: String,
+        password: String,
+    ) -> Result<(), &'static str> {
+        if self.reprovisioning != ReprovisioningState::ConfirmationRequired {
+            return Err("reprovisioning_not_confirmed");
+        }
+        self.reprovisioning = ReprovisioningState::PortalActive { ssid, password };
+        self.feedback = Some(FeedbackKind::ReprovisionConfirmation);
+        Ok(())
+    }
+
+    pub fn finish_reprovisioning(&mut self) {
+        self.reprovisioning = ReprovisioningState::Inactive;
+    }
+
+    pub fn show_page_indicator_until(&mut self, now_ms: u64) {
+        self.indicator_deadline_ms = Some(now_ms + 2_000);
+    }
+    pub fn page_indicator_visible(&self, now_ms: u64) -> bool {
+        self.indicator_deadline_ms
+            .is_some_and(|deadline| now_ms < deadline)
+    }
+    pub fn page_indicator(&self) -> Option<(usize, usize)> {
+        (!self.enabled_pages.is_empty()).then_some((self.page_index, self.enabled_pages.len()))
     }
 
     pub fn apply_command(&mut self, command: &Device_command) -> Result<(), &'static str> {
@@ -96,6 +151,7 @@ impl Device_runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mqtt::Command_payload;
 
     #[test]
     fn key_press_cycles_pages_and_long_press_opens_maintenance() {
@@ -109,6 +165,25 @@ mod tests {
         );
         runtime.long_key_press();
         assert_eq!(runtime.screen, Local_screen::Maintenance);
+        assert_eq!(
+            runtime.reprovisioning,
+            ReprovisioningState::ConfirmationRequired
+        );
+        assert_eq!(
+            runtime.confirm_reprovisioning("GlanceDeck-Setup".to_owned(), "secret".to_owned()),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn page_indicator_expires_after_two_seconds() {
+        let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "home".to_owned()]);
+        runtime.short_key_press();
+        runtime.show_page_indicator_until(1_000);
+        assert_eq!(runtime.page_indicator(), Some((1, 2)));
+        assert!(runtime.page_indicator_visible(2_999));
+        assert!(!runtime.page_indicator_visible(3_000));
+        assert_eq!(runtime.feedback, Some(FeedbackKind::PageChanged));
     }
 
     #[test]

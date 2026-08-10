@@ -17,7 +17,7 @@ export const begin_device_command_atom = atom(
   (_get, set, device_id: string) => {
     set(command_feedback_atom, {
       device_id,
-      message: 'Command is being queued…',
+      message: '',
       phase: 'submitting',
     })
   },
