@@ -273,6 +273,11 @@
     "cancel": "取消",
     "queued": "已将 {version} 加入 {device} 的队列。",
     "otaFailed": "无法加入固件更新队列。",
+    "cancelUpdate": "取消更新",
+    "rollback": "回滚",
+    "cancelled": "更新已取消。",
+    "rollbackQueued": "回滚已排队。",
+    "otaJobActionFailed": "无法修改 OTA 任务。",
     "power_unsafe_for_ota": "更新前设备需要 USB 电源或至少 30% 电量。",
     "incompatible_release": "该固件版本与设备不兼容。",
     "device_or_release_not_found": "设备或固件版本已不可用。"

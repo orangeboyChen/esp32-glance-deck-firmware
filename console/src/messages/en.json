@@ -273,6 +273,11 @@
     "cancel": "Cancel",
     "queued": "Queued {version} for {device}.",
     "otaFailed": "Unable to queue the firmware update.",
+    "cancelUpdate": "Cancel update",
+    "rollback": "Roll back",
+    "cancelled": "Update cancelled.",
+    "rollbackQueued": "Rollback queued.",
+    "otaJobActionFailed": "Unable to change the OTA job.",
     "power_unsafe_for_ota": "The device needs USB power or at least 30% battery before updating.",
     "incompatible_release": "This release is not compatible with the device.",
     "device_or_release_not_found": "The device or firmware release is no longer available."

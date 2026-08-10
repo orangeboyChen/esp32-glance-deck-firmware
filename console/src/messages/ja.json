@@ -273,6 +273,11 @@
     "cancel": "キャンセル",
     "queued": "{device} に {version} をキューしました。",
     "otaFailed": "ファームウェア更新をキューできません。",
+    "cancelUpdate": "更新をキャンセル",
+    "rollback": "ロールバック",
+    "cancelled": "更新をキャンセルしました。",
+    "rollbackQueued": "ロールバックをキューに追加しました。",
+    "otaJobActionFailed": "OTA ジョブを変更できません。",
     "power_unsafe_for_ota": "更新前に USB 電源または 30% 以上のバッテリーが必要です。",
     "incompatible_release": "このリリースはデバイスに対応していません。",
     "device_or_release_not_found": "デバイスまたはファームウェアリリースは利用できなくなりました。"

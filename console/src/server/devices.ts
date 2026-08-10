@@ -20,6 +20,7 @@ export type DeviceSummary = {
   preview_svg: string | null
   source_values: Record<string, string | number | null> | null
   ota_status: string | null
+  ota_job_id: string | null
 }
 
 export async function list_devices(): Promise<DeviceSummary[]> {
@@ -50,8 +51,8 @@ export async function list_devices(): Promise<DeviceSummary[]> {
     const [snapshot] = await database.select({ values: source_snapshots.values })
       .from(source_snapshots).innerJoin(usage_sources, eq(source_snapshots.source_id, usage_sources.id))
       .orderBy(desc(source_snapshots.fetched_at)).limit(1)
-    const [ota_job] = await database.select({ status: ota_jobs.status }).from(ota_jobs).where(eq(ota_jobs.device_id, row.id)).orderBy(desc(ota_jobs.created_at)).limit(1)
-    return { ...row, source_values: snapshot?.values ?? null, ota_status: ota_job?.status ?? null }
+    const [ota_job] = await database.select({ id: ota_jobs.id, status: ota_jobs.status }).from(ota_jobs).where(eq(ota_jobs.device_id, row.id)).orderBy(desc(ota_jobs.created_at)).limit(1)
+    return { ...row, source_values: snapshot?.values ?? null, ota_status: ota_job?.status ?? null, ota_job_id: ota_job?.id ?? null }
   }))
 }
 
