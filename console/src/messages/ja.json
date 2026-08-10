@@ -293,5 +293,22 @@
     ,"no_power_safe_devices": "安全な電源テレメトリを持つ互換デバイスがありません。"
     ,"device_not_found": "選択したデバイスは存在しません。"
     ,"firmware_release_not_found": "ファームウェアリリースは存在しません。"
+  },
+  "Auth": {
+    "loginTitle": "Glance Deck にサインイン",
+    "loginDescription": "管理者アカウントまたは登録済みのパスキーを使用します。",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "login": "サインイン",
+    "passkeyLogin": "パスキーでサインイン",
+    "firstRunHint": "初回起動ですか？",
+    "setupHint": "初期設定 URL を開いて最初の管理者を作成してください。",
+    "setupTitle": "Glance Deck を初期設定",
+    "setupDescription": "このコントロールプレーンの管理者アカウントを作成します。",
+    "createAdministrator": "管理者を作成",
+    "setupFailed": "管理者アカウントを作成できません。",
+    "invalidCredentials": "メールアドレスまたはパスワードが正しくありません。",
+    "loginFailed": "サインインできません。",
+    "passkeyUnsupported": "このブラウザはパスキーに対応していません。"
   }
 }

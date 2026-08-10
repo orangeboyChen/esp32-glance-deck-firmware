@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import argon2 from 'argon2'
 import { and, eq, gt } from 'drizzle-orm'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 
 import { db } from './db'
 import { administrators, sessions } from './schema'
@@ -69,4 +70,10 @@ export async function current_administrator() {
 export async function clear_session() {
   const cookie_store = await cookies()
   cookie_store.delete(session_cookie_name)
+}
+
+export async function require_page_administrator(locale: string) {
+  const administrator = await current_administrator()
+  if (!administrator) redirect(`/${locale}/login`)
+  return administrator
 }

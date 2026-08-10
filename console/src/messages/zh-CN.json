@@ -293,5 +293,22 @@
     ,"no_power_safe_devices": "没有具备安全电源遥测的兼容设备。"
     ,"device_not_found": "选中的设备已不存在。"
     ,"firmware_release_not_found": "固件版本已不存在。"
+  },
+  "Auth": {
+    "loginTitle": "登录 Glance Deck",
+    "loginDescription": "使用管理员账号或已注册的 Passkey 登录。",
+    "email": "邮箱",
+    "password": "密码",
+    "login": "登录",
+    "passkeyLogin": "使用 Passkey 登录",
+    "firstRunHint": "首次运行？",
+    "setupHint": "打开初始化地址创建第一个管理员。",
+    "setupTitle": "初始化 Glance Deck",
+    "setupDescription": "为这个控制平面创建唯一管理员账号。",
+    "createAdministrator": "创建管理员",
+    "setupFailed": "无法创建管理员账号。",
+    "invalidCredentials": "邮箱或密码不正确。",
+    "loginFailed": "登录失败。",
+    "passkeyUnsupported": "当前浏览器不支持 Passkey。"
   }
 }

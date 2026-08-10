@@ -293,5 +293,22 @@
     ,"no_power_safe_devices": "No compatible device has safe power telemetry."
     ,"device_not_found": "A selected device no longer exists."
     ,"firmware_release_not_found": "The firmware release no longer exists."
+  },
+  "Auth": {
+    "loginTitle": "Sign in to Glance Deck",
+    "loginDescription": "Use the administrator account or a registered passkey.",
+    "email": "Email",
+    "password": "Password",
+    "login": "Sign in",
+    "passkeyLogin": "Sign in with passkey",
+    "firstRunHint": "First run?",
+    "setupHint": "Open the setup URL to create the first administrator.",
+    "setupTitle": "Set up Glance Deck",
+    "setupDescription": "Create the single administrator account for this control plane.",
+    "createAdministrator": "Create administrator",
+    "setupFailed": "Unable to create the administrator account.",
+    "invalidCredentials": "The email or password is incorrect.",
+    "loginFailed": "Unable to sign in.",
+    "passkeyUnsupported": "This browser does not support passkeys."
   }
 }
