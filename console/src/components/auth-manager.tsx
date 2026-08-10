@@ -1,6 +1,6 @@
 'use client'
 
-import { Alert, Block, Button, Flexbox, Input, Text, toast } from '@lobehub/ui'
+import { Alert, Block, Button, Flexbox, Input, Text } from '@lobehub/ui'
 import { KeyRound, LogIn } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
@@ -59,7 +59,7 @@ export function LoginManager() {
     } finally { set_busy(false) }
   }
 
-  return <main className="auth-shell"><Block className="auth-card" variant="outlined"><Flexbox gap={10}><Text className="eyebrow"><LogIn aria-hidden />Glance Deck</Text><h1>{translate('loginTitle')}</h1><Text type="secondary">{translate('loginDescription')}</Text></Flexbox>{error && <Alert showIcon type="error" message={error} /> }<form onSubmit={login}><Flexbox gap={12}><label htmlFor="login-email">{translate('email')}</label><Input id="login-email" required type="email" autoComplete="username" value={email} onChange={(event) => set_email(event.target.value)} /><label htmlFor="login-password">{translate('password')}</label><Input id="login-password" required type="password" autoComplete="current-password" value={password} onChange={(event) => set_password(event.target.value)} /><Button htmlType="submit" loading={busy} type="primary">{translate('login')}</Button></Flexbox></form><Button icon={KeyRound} disabled={busy} onClick={() => void passkey_login()}>{translate('passkeyLogin')}</Button><Button type="text" onClick={() => toast.info(translate('setupHint'))}>{translate('firstRunHint')}</Button></Block></main>
+  return <main className="auth-shell"><Block className="auth-card" variant="outlined"><Flexbox gap={10}><Text className="eyebrow"><LogIn aria-hidden />Glance Deck</Text><h1>{translate('loginTitle')}</h1><Text type="secondary">{translate('loginDescription')}</Text></Flexbox>{error && <Alert showIcon type="error" message={error} /> }<form onSubmit={login}><Flexbox gap={12}><label htmlFor="login-email">{translate('email')}</label><Input id="login-email" required type="email" autoComplete="username" value={email} onChange={(event) => set_email(event.target.value)} /><label htmlFor="login-password">{translate('password')}</label><Input id="login-password" required type="password" autoComplete="current-password" value={password} onChange={(event) => set_password(event.target.value)} /><Button htmlType="submit" loading={busy} type="primary">{translate('login')}</Button></Flexbox></form><Button icon={KeyRound} disabled={busy} onClick={() => void passkey_login()}>{translate('passkeyLogin')}</Button><Button type="text" onClick={() => router.push('/setup')}>{translate('firstRunHint')}</Button></Block></main>
 }
 
 export function SetupManager() {
