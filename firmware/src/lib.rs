@@ -10,6 +10,8 @@ pub mod esp_enrollment;
 #[cfg(feature = "esp")]
 pub mod esp_mqtt;
 #[cfg(feature = "esp")]
+pub mod esp_ota;
+#[cfg(feature = "esp")]
 pub mod esp_storage;
 pub mod flash_cache;
 pub mod local_screen;
