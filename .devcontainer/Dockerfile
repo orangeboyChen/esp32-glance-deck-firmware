@@ -15,7 +15,12 @@ ENV PATH=/home/esp/.cargo/bin:${PATH}
 
 RUN mkdir -p /home/esp/.cargo/bin \
     && curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal \
-    && curl --proto '=https' --tlsv1.2 -fsSL https://github.com/esp-rs/espup/releases/latest/download/espup-x86_64-unknown-linux-gnu -o /home/esp/.cargo/bin/espup \
+    && case "$(uname -m)" in \
+        x86_64) espup_target=x86_64-unknown-linux-gnu ;; \
+        aarch64) espup_target=aarch64-unknown-linux-gnu ;; \
+        *) echo "unsupported container architecture: $(uname -m)" >&2; exit 1 ;; \
+      esac \
+    && curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/esp-rs/espup/releases/latest/download/espup-${espup_target}" -o /home/esp/.cargo/bin/espup \
     && chmod +x /home/esp/.cargo/bin/espup \
     && espup install \
     && . /home/esp/export-esp.sh \

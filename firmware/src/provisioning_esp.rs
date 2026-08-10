@@ -28,7 +28,10 @@ const PORTAL_SSID: &str = "GlanceDeck-Setup";
 static RESTART_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 pub enum NetworkRuntime {
-    Connected(BlockingWifi<EspWifi<'static>>),
+    Connected {
+        wifi: BlockingWifi<EspWifi<'static>>,
+        partition: EspDefaultNvsPartition,
+    },
     Provisioning {
         wifi: BlockingWifi<EspWifi<'static>>,
         _portal: EspHttpServer<'static>,
@@ -56,7 +59,7 @@ pub fn start_network() -> Result<NetworkRuntime> {
             Ok(()) => {
                 promote_candidate(&partition, &candidate)?;
                 info!("candidate Wi-Fi obtained an IP and is now active");
-                return Ok(NetworkRuntime::Connected(wifi));
+                return Ok(NetworkRuntime::Connected { wifi, partition });
             }
             Err(error) => {
                 warn!("candidate Wi-Fi failed; preserved previous configuration: {error:#}")
@@ -68,7 +71,7 @@ pub fn start_network() -> Result<NetworkRuntime> {
         Some(config) => match connect_station(&mut wifi, &config) {
             Ok(()) => {
                 info!("Wi-Fi connected using NVS configuration");
-                Ok(NetworkRuntime::Connected(wifi))
+                Ok(NetworkRuntime::Connected { wifi, partition })
             }
             Err(error) => {
                 warn!("saved Wi-Fi connection failed; starting provisioning portal: {error:#}");
