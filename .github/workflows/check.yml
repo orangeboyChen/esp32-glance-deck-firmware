@@ -12,52 +12,52 @@ jobs:
   console:
     name: Console build and tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: console
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
       - run: bun install --frozen-lockfile
+        working-directory: console
       - run: bun test
+        working-directory: console
       - run: bun run build
+        working-directory: console
 
   firmware:
     name: Rust firmware checks
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: firmware
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - run: cargo fmt --check
+        working-directory: firmware
       - run: cargo metadata --no-deps --format-version 1
+        working-directory: firmware
       - name: Build firmware in Dev Container
         uses: devcontainers/ci@v0.3
         with:
           subFolder: .
-          runCmd: cd firmware && cargo build
+          runCmd: cd firmware && cargo build && cargo test --lib
 
   home-assistant:
     name: Home Assistant integration checks
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: home-assistant
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - run: python -m compileall -q custom_components
+        working-directory: home-assistant
       - run: python -m json.tool custom_components/glance_deck/manifest.json > /dev/null
+        working-directory: home-assistant
       - run: python -m json.tool custom_components/glance_deck/strings.json > /dev/null
+        working-directory: home-assistant
       - run: python -m json.tool custom_components/glance_deck/translations/en.json > /dev/null
+        working-directory: home-assistant
 
   compose:
     name: Compose configuration

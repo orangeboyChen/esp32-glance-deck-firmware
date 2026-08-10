@@ -4,6 +4,9 @@ USER root
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl pkg-config libudev-dev \
+    && useradd --create-home --shell /bin/bash esp \
+    && mkdir -p /workspaces/esp32-glance-deck \
+    && chown -R esp:esp /workspaces \
     && rm -rf /var/lib/apt/lists/*
 
 USER esp
