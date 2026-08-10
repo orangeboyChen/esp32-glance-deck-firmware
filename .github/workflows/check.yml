@@ -46,7 +46,7 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           subFolder: .
-          runCmd: cd firmware && cargo build --features esp
+          runCmd: . /home/esp/export-esp.sh && cd firmware && cargo build --features esp
 
   home-assistant:
     name: Home Assistant integration checks
