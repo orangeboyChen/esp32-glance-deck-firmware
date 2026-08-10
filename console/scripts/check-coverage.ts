@@ -1,8 +1,10 @@
-const [report_path, threshold_argument] = Bun.argv.slice(2)
+import { readFile } from 'node:fs/promises'
+
+const [report_path, threshold_argument] = process.argv.slice(2)
 const threshold = Number(threshold_argument)
 if (!report_path || !Number.isFinite(threshold)) throw new Error('usage: check-coverage <lcov-path> <minimum-percent>')
 
-const report = await Bun.file(report_path).text()
+const report = await readFile(report_path, 'utf8')
 const lines = report.split('\n')
 let found = 0
 let hit = 0

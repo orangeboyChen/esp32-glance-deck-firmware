@@ -125,4 +125,34 @@ mod tests {
         config.mqtt.broker_url = "mqtt://broker.example".to_owned();
         assert_eq!(config.validate(), Err(ConfigError::Insecure_mqtt_url));
     }
+
+    #[test]
+    fn validates_device_identifier_and_connection_limits() {
+        assert_eq!(validate_device_id(""), Err(ConfigError::Empty_device_id));
+        assert_eq!(
+            validate_device_id("UPPER"),
+            Err(ConfigError::Invalid_device_id)
+        );
+        assert_eq!(
+            validate_device_id(&"a".repeat(MAX_DEVICE_ID_LEN + 1)),
+            Err(ConfigError::Device_id_too_long)
+        );
+        let mut config = device_config();
+        config.wifi.ssid.clear();
+        assert_eq!(config.validate(), Err(ConfigError::Empty_wifi_ssid));
+        config.wifi.ssid = "a".repeat(MAX_WIFI_SSID_LEN + 1);
+        assert_eq!(config.validate(), Err(ConfigError::Wifi_ssid_too_long));
+        config.wifi.ssid = "lan".to_owned();
+        config.mqtt.broker_url.clear();
+        assert_eq!(config.validate(), Err(ConfigError::Empty_mqtt_host));
+        config.mqtt.broker_url = "s".repeat(MAX_MQTT_HOST_LEN + 1);
+        assert_eq!(config.validate(), Err(ConfigError::Mqtt_host_too_long));
+        config.mqtt.broker_url = "mqtts://broker.example".to_owned();
+        config.mqtt.username.clear();
+        assert_eq!(config.validate(), Err(ConfigError::Empty_mqtt_credentials));
+        assert_eq!(
+            device_config().topics().unwrap().state(),
+            "glance_deck/office-deck/state"
+        );
+    }
 }

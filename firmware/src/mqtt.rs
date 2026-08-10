@@ -208,4 +208,21 @@ mod tests {
         };
         assert_eq!(command.validate(), Ok(()));
     }
+
+    #[test]
+    fn rejects_invalid_ota_and_oversized_mqtt_payloads() {
+        let mut command = Ota_command {
+            job_id: "job".to_owned(),
+            nonce: "nonce".to_owned(),
+            version: "1".to_owned(),
+            manifest_url: "https://example.test/manifest".to_owned(),
+            image_sha256: "a".repeat(64),
+        };
+        command.manifest_url = "http://example.test".to_owned();
+        assert_eq!(command.validate(), Err("ota_manifest_invalid"));
+        command.manifest_url = "https://example.test".to_owned();
+        command.image_sha256 = "a".repeat(63);
+        assert_eq!(command.validate(), Err("ota_hash_invalid"));
+        assert!(Device_command::from_payload(&vec![b'x'; MAX_MQTT_PAYLOAD_BYTES + 1]).is_err());
+    }
 }

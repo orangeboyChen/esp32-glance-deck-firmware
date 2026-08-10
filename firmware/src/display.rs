@@ -132,4 +132,45 @@ mod tests {
             Err(DisplayReleaseError::Content_hash_mismatch)
         );
     }
+
+    #[test]
+    fn rejects_invalid_release_metadata() {
+        let image = b"valid";
+        let mut candidate = release(image);
+        candidate.document_version = 2;
+        assert_eq!(
+            candidate.validate_metadata(),
+            Err(DisplayReleaseError::Unsupported_document_version)
+        );
+        candidate.document_version = SUPPORTED_DISPLAY_DOCUMENT_VERSION;
+        candidate.release_id = "bad id".to_owned();
+        assert_eq!(
+            candidate.validate_metadata(),
+            Err(DisplayReleaseError::Invalid_release_id)
+        );
+        candidate.release_id = "valid".to_owned();
+        candidate.image_url = "http://example.test/image".to_owned();
+        assert_eq!(
+            candidate.validate_metadata(),
+            Err(DisplayReleaseError::Insecure_image_url)
+        );
+        candidate.image_url = "https://example.test/image".to_owned();
+        candidate.image_sha256 = "wrong".to_owned();
+        assert_eq!(
+            candidate.validate_metadata(),
+            Err(DisplayReleaseError::Invalid_hash)
+        );
+        candidate.image_sha256 = hex_lower(&Sha256::digest(image));
+        candidate.image_bytes = 0;
+        assert_eq!(
+            candidate.validate_metadata(),
+            Err(DisplayReleaseError::Image_too_large)
+        );
+        candidate.image_bytes = image.len();
+        candidate.active_page_id.clear();
+        assert_eq!(
+            candidate.validate_metadata(),
+            Err(DisplayReleaseError::Empty_page_id)
+        );
+    }
 }

@@ -110,4 +110,34 @@ mod tests {
         runtime.long_key_press();
         assert_eq!(runtime.screen, Local_screen::Maintenance);
     }
+
+    #[test]
+    fn applies_commands_and_reports_confirmed_or_failed_state() {
+        let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "alerts".to_owned()]);
+        let show_alerts = Device_command {
+            command_id: "one".to_owned(),
+            action: Device_command_action::Show_page,
+            payload: Command_payload {
+                page_id: Some("alerts".to_owned()),
+                rotation_seconds: None,
+            },
+        };
+        assert_eq!(runtime.apply_command(&show_alerts), Ok(()));
+        let state = runtime.state(
+            -55,
+            Some("release".to_owned()),
+            Some("one".to_owned()),
+            Ok(()),
+        );
+        assert_eq!(state.page_id, "alerts");
+        assert_eq!(state.command_status, Some(Command_status::Confirmed));
+        let invalid = Device_command {
+            payload: Command_payload::default(),
+            ..show_alerts
+        };
+        assert_eq!(runtime.apply_command(&invalid), Err("page_id_required"));
+        let failed = runtime.state(-55, None, Some("two".to_owned()), Err("page_id_required"));
+        assert_eq!(failed.command_status, Some(Command_status::Failed));
+        assert_eq!(failed.error_message.as_deref(), Some("page_id_required"));
+    }
 }
