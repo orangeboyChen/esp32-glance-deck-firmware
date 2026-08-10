@@ -49,10 +49,11 @@ separate physical recovery flow.
   deliberate: repeatedly refreshing a reflective LCD for visual animation
   wastes battery and produces distracting flicker. The overlay is disabled in
   reduced-motion and critical-battery modes.
-- Battery operation requires an approved battery/charger carrier or fuel-gauge
-  accessory. Firmware must not infer a battery percentage from the ESP32 ADC
-  until the carrier's divider ratio, ADC calibration, and charge-detect signal
-  have been verified for the installed hardware.
+- Battery operation requires the approved external power carrier below. The
+  ESP32-S3-RLCD-4.2 board must not have a Li-ion cell connected directly to
+  its 5 V USB input, 3.3 V rail, or any GPIO. Its published board interface is
+  not evidence of an integrated charger, load-sharing circuit, battery
+  protection, or fuel gauge.
 - The power driver reports source, charging state, and, when measurable,
   battery percentage and millivolts every 15 minutes, after a material power
   change, and before OTA. The System screen always shows the same current
@@ -62,6 +63,68 @@ separate physical recovery flow.
   10%, disable optional audio and page-transition overlay. Below the configured
   OTA threshold (default 30% unless external power is present), reject OTA with
   the explicit `power_unsafe_for_ota` result.
+
+## External battery power carrier
+
+The battery option is an external USB-C power carrier between the USB source,
+one protected single-cell Li-ion/LiPo battery, and the display board's normal
+USB power input. It has a **real power-path charger**, not a simple TP4056-type
+charger board. The reference design uses a BQ25895 (or an electrically
+equivalent single-cell switching charger with NVDC power path, input-current
+limit, JEITA/NTC support, charge termination, and power-good status) plus a
+dedicated fuel gauge such as MAX17048. Final IC selection and component values
+must be checked against the selected battery, enclosure temperature, and USB-C
+connector layout before a PCB is ordered.
+
+```text
+USB-C 5 V VBUS
+  -> resettable fuse + TVS + reverse-current protection
+  -> BQ25895 VIN  ----> input-current limit / thermal regulation
+                         |                    |
+protected 1S cell <---- BAT              SYS --+--> high-efficiency 5 V boost
+       |                         (USB first,   |       -> load switch / fuse
+       +--> MAX17048 fuel gauge          battery only on loss) -> board USB-C
+       +--> 10 kOhm NTC to charger TS
+
+charger PG/STAT + gauge alert -> ESP32 GPIOs (level-safe, optional)
+gauge I2C -> ESP32 I2C (only after bus-voltage validation)
+```
+
+`SYS` is the only source for the boost converter. With VBUS connected, the
+charger's power path supplies the display load from USB while independently
+charging the cell. At charge termination it stops charging; it does not keep
+cycling the battery to power the display. If the display's instantaneous load
+exceeds the negotiated/advertised USB input limit, Dynamic Power Management
+may allow a bounded battery supplement rather than brown out; the carrier must
+report this as `usb_and_battery`. When VBUS is removed, SYS switches to the
+cell and the 5 V boost keeps the board alive. No firmware decision is involved
+in this switchover.
+
+The boost converter must be sized for measured Wi-Fi transmit and RLCD refresh
+peaks with margin, include its recommended input/output capacitors, and have a
+low quiescent current appropriate for standby. It supplies **only** the board's
+normal 5 V USB-power path; do not back-feed the board 3.3 V rail. The USB-C
+receptacle is a 5 V sink (CC pull-downs, no unimplemented PD claim), and its
+data lines are left isolated unless a separately reviewed USB data design needs
+them. Add a battery connector with polarity protection, a cell protector when
+the pack does not include one, and the charger-required NTC. Never charge a
+bare or unprotected cell.
+
+Charging current is a hardware configuration, not a firmware guess: cap it to
+the connector/source contract and battery specification (start at USB-default
+current during bring-up). A product carrier must validate worst-case charger
+temperature at low cell voltage, repeated USB insertion, brown-out behavior,
+and boost efficiency. The firmware can request a lower charge/input limit only
+when the selected charger exposes that control safely; it must never enable a
+higher current than the carrier's safe fixed limit.
+
+The MAX17048 (or equivalent compensated fuel gauge) reports cell voltage and
+state of charge. `PG`, charge state, and gauge readings map to MQTT power state:
+`usb` means external power with no battery contribution, `usb_and_battery`
+means a measurable supplement/charging path, `battery` means VBUS absent, and
+`unavailable` means the optional carrier or its telemetry is absent. The console
+must display the source, charging state, last sample time, percentage, and
+voltage, and must treat unknown telemetry conservatively for OTA.
 
 ## Enrollment and reprovisioning
 
