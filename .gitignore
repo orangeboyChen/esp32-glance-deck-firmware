@@ -3,3 +3,9 @@
 firmware/build/
 firmware/sdkconfig
 firmware/sdkconfig.old
+firmware/target/
+console/.next/
+node_modules/
+.next/
+
+firmware/.embuild/

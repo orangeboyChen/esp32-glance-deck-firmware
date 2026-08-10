@@ -1,0 +1,25 @@
+{
+  "name": "ESP32 Glance Deck",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "esp",
+  "workspaceFolder": "/workspaces/esp32-glance-deck",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspaces/esp32-glance-deck,type=bind,consistency=cached"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "espressif.esp-idf-extension"
+      ]
+    }
+  },
+  "postCreateCommand": "bun install",
+  "remoteEnv": {
+    "PATH": "/home/esp/.bun/bin:/home/esp/.cargo/bin:${containerEnv:PATH}",
+    "MCU": "esp32s3",
+    "ESP_IDF_VERSION": "v5.3.1"
+  }
+}

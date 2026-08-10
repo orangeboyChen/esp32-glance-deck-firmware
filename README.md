@@ -11,16 +11,19 @@ and reports its own state.
 
 ## Project layout
 
-- [`firmware/`](firmware/): ESP-IDF firmware.
+- [`firmware/`](firmware/): Rust firmware built on ESP-IDF.
+- [`console/`](console/): Bun-managed Next.js + LobeUI control plane.
+- [`.devcontainer/`](.devcontainer/): reproducible ESP-IDF/Rust firmware environment.
 - [`home-assistant/`](home-assistant/): Home Assistant integration guidance.
 - [`docs/architecture.md`](docs/architecture.md): responsibilities and layers.
 - [`docs/mqtt-protocol.md`](docs/mqtt-protocol.md): MQTT contract.
 
 ## Development status
 
-The repository currently contains the ESP-IDF scaffold and the v1 MQTT
-contract. Wi-Fi provisioning, RLCD driver integration, UI rendering, MQTT
-transport, and Home Assistant discovery are the next implementation stages.
+The repository contains a Rust-on-ESP-IDF firmware scaffold, Bun-managed
+Next.js control-plane scaffold, Docker Compose development services, and the
+v1 MQTT contract. Wi-Fi provisioning, RLCD driver integration, device MQTT,
+Home Assistant discovery, and the authenticated control plane are next.
 
 ## License
 
