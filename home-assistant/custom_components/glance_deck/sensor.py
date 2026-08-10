@@ -18,6 +18,8 @@ SENSORS: tuple[tuple[str, str | None], ...] = (
     ("wifi_rssi", SensorDeviceClass.SIGNAL_STRENGTH),
     ("last_seen_at", SensorDeviceClass.TIMESTAMP),
     ("release_version", None),
+    ("usage_percentage", None),
+    ("reset_time", SensorDeviceClass.TIMESTAMP),
 )
 
 
@@ -47,6 +49,16 @@ class GlanceDeckSensor(GlanceDeckEntity, SensorEntity):
     def native_value(self) -> Any:
         if self.key == "release_version":
             return self.device.get("display", {}).get("release_version") or self.device.get("release_version")
+        source = self.device.get("display", {}).get("source", {})
+        values = source.get("values", {}) if isinstance(source, dict) else {}
+        if self.key == "usage_percentage":
+            used, total = values.get("used"), values.get("total")
+            if isinstance(used, (int, float)) and isinstance(total, (int, float)) and total > 0:
+                return round(used / total * 100, 1)
+            return None
+        if self.key == "reset_time":
+            value = values.get("resets_at")
+            return datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else None
         value = self.device.get(self.key)
         if self.key == "last_seen_at" and isinstance(value, str):
             return datetime.fromisoformat(value.replace("Z", "+00:00"))

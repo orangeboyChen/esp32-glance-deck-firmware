@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 
 import { require_api_scope } from '@/server/auth'
 import { db } from '@/server/db'
-import { devices, display_releases } from '@/server/schema'
+import { devices, display_releases, source_snapshots, usage_sources } from '@/server/schema'
 
 export async function GET(request: Request, { params }: { params: Promise<{ device_id: string }> }) {
   if (!await require_api_scope(request, 'devices:read')) {
@@ -27,5 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ devi
     .limit(1)
 
   if (!display) return NextResponse.json({ error: 'display_not_found' }, { status: 404 })
-  return NextResponse.json(display)
+  const [snapshot] = await db.select({ values: source_snapshots.values, fetched_at: source_snapshots.fetched_at, source_name: usage_sources.name })
+    .from(source_snapshots).innerJoin(usage_sources, eq(source_snapshots.source_id, usage_sources.id)).orderBy(desc(source_snapshots.fetched_at)).limit(1)
+  return NextResponse.json({ ...display, source: snapshot ?? null, stale: !snapshot || Date.now() - snapshot.fetched_at.getTime() > 30 * 60 * 1000 })
 }

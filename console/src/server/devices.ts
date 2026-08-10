@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 
 import { db } from './db'
-import { devices, display_releases } from './schema'
+import { devices, display_releases, ota_jobs, source_snapshots, usage_sources } from './schema'
 
 export type DeviceSummary = {
   id: string
@@ -12,12 +12,15 @@ export type DeviceSummary = {
   wifi_rssi: number | null
   last_seen_at: Date | null
   preview_svg: string | null
+  source_values: Record<string, string | number | null> | null
+  ota_status: string | null
 }
 
 export async function list_devices(): Promise<DeviceSummary[]> {
-  if (!db) return []
+  const database = db
+  if (!database) return []
 
-  const rows = await db
+  const rows = await database
     .select({
       id: devices.id,
       name: devices.name,
@@ -31,5 +34,11 @@ export async function list_devices(): Promise<DeviceSummary[]> {
     .from(devices)
     .leftJoin(display_releases, eq(devices.release_id, display_releases.id))
 
-  return rows
+  return Promise.all(rows.map(async (row) => {
+    const [snapshot] = await database.select({ values: source_snapshots.values })
+      .from(source_snapshots).innerJoin(usage_sources, eq(source_snapshots.source_id, usage_sources.id))
+      .orderBy(desc(source_snapshots.fetched_at)).limit(1)
+    const [ota_job] = await database.select({ status: ota_jobs.status }).from(ota_jobs).where(eq(ota_jobs.device_id, row.id)).orderBy(desc(ota_jobs.created_at)).limit(1)
+    return { ...row, source_values: snapshot?.values ?? null, ota_status: ota_job?.status ?? null }
+  }))
 }
