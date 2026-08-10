@@ -46,6 +46,10 @@ async function safe_url(base_url: string, request_path: string) {
   const url = new URL(request_path, base_url)
   const local_dev = process.env.NODE_ENV !== 'production' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
   if (url.protocol !== 'https:' && !local_dev) throw new Error('source_https_required')
+  const allowed_hosts = (process.env.SOURCE_ALLOWED_HOSTS ?? '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean)
+  if (!local_dev && allowed_hosts.length > 0 && !allowed_hosts.includes(url.hostname.toLowerCase())) {
+    throw new Error('source_host_not_allowlisted')
+  }
   if (!local_dev) {
     const resolved = await lookup(url.hostname, { all: true })
     if (resolved.length === 0 || resolved.some(({ address }) => is_private_address(address))) throw new Error('source_private_address_blocked')

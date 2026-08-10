@@ -51,3 +51,4 @@ ALTER TABLE "devices" ADD COLUMN "enrollment_code_hash" varchar(64);
 ALTER TABLE "devices" ADD COLUMN "enrollment_expires_at" timestamp with time zone;
 ALTER TABLE "devices" ADD COLUMN "mqtt_username" varchar(128);
 ALTER TABLE "devices" ADD COLUMN "mqtt_password_ciphertext" text;
+ALTER TABLE "webauthn_challenges" ALTER COLUMN "administrator_id" DROP NOT NULL;
