@@ -5,7 +5,7 @@ All topics use `glance_deck/<device_id>/`.
 
 | Topic suffix | Direction | Retained | Purpose |
 | --- | --- | --- | --- |
-| `release` | Control plane to device | Yes | Current immutable display bitmap |
+| `release` | Control plane to device | Yes | Current immutable display page directory |
 | `command` | HA to device | No | Immediate action |
 | `state` | Device to control plane | Yes | Connectivity and UI state |
 | `availability` | Device to control plane | Yes | `online` or `offline` |
@@ -15,9 +15,15 @@ All topics use `glance_deck/<device_id>/`.
 ## Display release
 
 The control plane is the only renderer. It rasterizes all text, including CJK,
-with its bundled font and sends an immutable 1-bit MSB-first image. The ESP32
-must not parse SVG or depend on a font catalog. It must reject unknown document
-versions, image formats, dimensions, hashes, or byte counts.
+with its bundled font and publishes immutable 1-bit MSB-first page metadata.
+The ESP32 must not parse SVG or depend on a font catalog. It must reject unknown
+document versions, image formats, dimensions, hashes, or byte counts.
+
+The retained payload is a page directory, not a bulk-transfer request. On a
+new release the device downloads only `active_page_id`; on an explicit page
+change it flushes a verified cached page immediately or downloads only that
+target page. If offline, it cycles only cached pages and keeps the current
+verified frame when the requested target is unavailable.
 
 ```json
 {
@@ -29,7 +35,7 @@ versions, image formats, dimensions, hashes, or byte counts.
     "image_format": "mono1-msb",
     "image_width": 400,
     "image_height": 300,
-    "image_url": "https://console.example/api/v1/releases/.../image?signature=...",
+    "image_url": "https://console.example/api/v1/releases/.../pages/usage/image?signature=...",
     "image_sha256": "...",
     "image_bytes": 15000
   }]

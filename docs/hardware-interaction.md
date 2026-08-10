@@ -37,8 +37,10 @@ separate physical recovery flow.
   contrast bitmap and avoid text smaller than the legible size established by
   hardware testing.
 - When offline or loading, retain the last verified page. Do not blank the
-  panel or show an indefinite spinner. The System page identifies stale data,
-  last successful update, and a specific failure reason.
+  panel or show an indefinite spinner. Cached pages remain locally switchable;
+  an uncached requested page waits for connectivity without replacing the
+  visible frame. The System page identifies stale data, last successful update,
+  and a specific failure reason.
 
 ## Enrollment and reprovisioning
 
