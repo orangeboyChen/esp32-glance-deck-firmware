@@ -26,6 +26,7 @@ RUN mkdir -p /home/esp/.cargo/bin \
     && chmod +x /home/esp/.cargo/bin/espup \
     && espup install --targets esp32s3 --toolchain-version ${ESPUP_TOOLCHAIN_VERSION} \
     && . /home/esp/export-esp.sh \
+    && cargo install ldproxy --locked \
     && cargo install cargo-espflash --locked \
     && curl -fsSL https://bun.sh/install | bash
 
