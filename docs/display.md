@@ -26,7 +26,7 @@ conventions, not special firmware page types.
 
 ```text
 ┌──────────────────────────────────────┐
-│ ↗ Usage                       Online │
+│ ▥ Usage                       Online │
 │ Pro plan                             │
 │                                      │
 │ Used 72%                  72 / 100   │
