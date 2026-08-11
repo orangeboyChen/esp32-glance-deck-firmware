@@ -34,7 +34,7 @@ h3 { font-size: clamp(20px, 2.5vw, 26px); font-weight: 650; letter-spacing: -.02
 .device-card { align-items: stretch; display: grid; gap: clamp(24px, 4vw, 52px); grid-template-columns: minmax(196px, 280px) minmax(0, 1fr); min-width: 0; padding: clamp(20px, 3vw, 32px); }
 .device-card[data-selected] { border-color: #007aff; box-shadow: 0 0 0 1px #007aff; }
 .preview-select { align-self: center; appearance: none; background: transparent; border: 0; border-radius: 12px; cursor: pointer; display: block; max-width: 280px; padding: 0; text-align: inherit; width: 100%; }
-.device-preview { aspect-ratio: 3 / 4; background: #f5f5f7; border: 8px solid #1d1d1f; border-radius: 7px; box-shadow: 0 12px 28px rgb(0 0 0 / 12%); color: #1d1d1f; display: flex; flex-direction: column; min-height: 260px; padding: 16px; transition: box-shadow .18s ease; width: 100%; }
+.device-preview { aspect-ratio: 4 / 3; background: #f5f5f7; border: 8px solid #1d1d1f; border-radius: 7px; box-shadow: 0 12px 28px rgb(0 0 0 / 12%); color: #1d1d1f; display: flex; flex-direction: column; min-height: 260px; padding: 16px; transition: box-shadow .18s ease; width: 100%; }
 .device-preview[data-selected], .preview-select:hover .device-preview { box-shadow: 0 0 0 3px #007aff, 0 14px 32px rgb(0 0 0 / 15%); }
 .image-preview { object-fit: contain; padding: 0; }
 .auth-shell { align-items: center; background: #f5f5f7; display: flex; justify-content: center; min-height: 100svh; padding: 24px; }

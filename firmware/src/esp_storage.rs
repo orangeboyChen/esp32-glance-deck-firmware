@@ -2,7 +2,7 @@ use std::fs;
 
 use anyhow::{bail, Context, Result};
 use embedded_svc::{
-    http::{client::Client as HttpClient, Headers, Method, Status},
+    http::{client::Client as HttpClient, Method},
     io::Read,
 };
 use esp_idf_svc::{

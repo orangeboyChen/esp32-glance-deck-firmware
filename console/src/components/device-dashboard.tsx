@@ -51,7 +51,11 @@ export function DeviceDashboard({ devices, summary }: DeviceDashboardProps) {
   const [page_loading, set_page_loading] = useState(false)
   const [page_saving, set_page_saving] = useState(false)
   const [enrollment_open, set_enrollment_open] = useState(false)
+  const [device_filter, set_device_filter] = useState<'all' | 'attention'>('all')
   const change_locale = (next_locale: 'en' | 'zh-CN' | 'ja') => router.replace(pathname, { locale: next_locale })
+  const visible_devices = device_filter === 'all'
+    ? devices
+    : devices.filter((device) => device.status !== 'online' || device.ota_status !== null || device.power_source === 'unavailable' || device.active_page_id === 'alerts')
 
   const select_device = (device: DeviceSummary) => {
     set_selected_device_id(device.id)
@@ -177,11 +181,12 @@ export function DeviceDashboard({ devices, summary }: DeviceDashboardProps) {
               { label: translate('allDevices'), value: 'all' },
               { label: translate('needsAttention'), value: 'attention' },
             ]}
-            value="all"
+            onChange={(value) => set_device_filter(value as 'all' | 'attention')}
+            value={device_filter}
           />
         </Flexbox>
 
-        {devices.length === 0 ? (
+        {visible_devices.length === 0 ? (
           <Empty
             className="empty-state"
             emoji="🖥️"
@@ -191,7 +196,7 @@ export function DeviceDashboard({ devices, summary }: DeviceDashboardProps) {
           />
         ) : (
           <Flexbox className="device-list" gap={16}>
-            {devices.map((device) => {
+            {visible_devices.map((device) => {
               const is_selected = selected_device_id === device.id
               const status_label = device.status === 'online'
                 ? translate('online')

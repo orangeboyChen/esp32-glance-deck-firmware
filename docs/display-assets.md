@@ -1,7 +1,7 @@
 # Display assets and CJK text
 
 ESP32 Glance Deck does not render text on-device. The control plane converts a
-display document into an immutable 300 × 400 `mono1-msb` frame before it is
+display document into an immutable 400 × 300 `mono1-msb` frame before it is
 published. A frame is exactly 15,000 bytes: one most-significant-bit-first
 pixel per display position, where a set bit is black.
 
@@ -18,8 +18,8 @@ The control plane sends only the following release metadata to a device:
 {
   "document_version": 1,
   "image_format": "mono1-msb",
-  "image_width": 300,
-  "image_height": 400,
+  "image_width": 400,
+  "image_height": 300,
   "image_bytes": 15000
 }
 ```

@@ -18,6 +18,27 @@ pub enum FlashCacheError {
     InvalidFrame,
 }
 
+impl std::fmt::Display for FlashCacheError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Io(error) => write!(formatter, "flash cache I/O error: {error}"),
+            Self::Codec(error) => write!(formatter, "flash cache metadata error: {error}"),
+            Self::InvalidHash => formatter.write_str("flash cache hash is invalid"),
+            Self::InvalidFrame => formatter.write_str("flash cache frame is invalid"),
+        }
+    }
+}
+
+impl std::error::Error for FlashCacheError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Codec(error) => Some(error),
+            Self::InvalidHash | Self::InvalidFrame => None,
+        }
+    }
+}
+
 impl From<io::Error> for FlashCacheError {
     fn from(error: io::Error) -> Self {
         Self::Io(error)

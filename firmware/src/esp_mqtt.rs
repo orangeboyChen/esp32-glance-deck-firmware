@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use embedded_svc::mqtt::client::{Event, EventPayload, QoS};
+use embedded_svc::mqtt::client::{EventPayload, QoS};
 use esp_idf_svc::mqtt::client::{Details, EspMqttClient, MqttClientConfiguration};
 
 use crate::{
