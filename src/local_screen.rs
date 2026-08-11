@@ -53,9 +53,22 @@ pub fn wifi_setup_frame(password: &str) -> Result<Vec<u8>, &'static str> {
     }
     let mut frame = vec![0_u8; DISPLAY_IMAGE_BYTES];
     rectangle(&mut frame, 12, 12, DISPLAY_WIDTH - 24, DISPLAY_HEIGHT - 24);
-    draw_centered_text(&mut frame, "WIFI SETUP", 54, 3);
-    draw_centered_text(&mut frame, password, 174, 3);
+    draw_wifi_icon(&mut frame, 174, 42);
+    draw_centered_text(&mut frame, "WIFI SETUP", 112, 3);
+    draw_centered_text(&mut frame, password, 196, 3);
     Ok(frame)
+}
+
+fn draw_wifi_icon(frame: &mut [u8], left: usize, top: usize) {
+    // A monochrome, three-tier glyph remains legible without relying on color.
+    fill(frame, left + 34, top + 58, 12, 12);
+    fill(frame, left + 22, top + 42, 36, 6);
+    fill(frame, left + 12, top + 26, 56, 6);
+    fill(frame, left + 2, top + 10, 76, 6);
+    for x in 0..14 {
+        fill(frame, left + 2 + x * 6, top + 10 + x / 2, 4, 4);
+        fill(frame, left + 12 + x * 4, top + 26 + x / 3, 4, 4);
+    }
 }
 
 fn draw_centered_text(frame: &mut [u8], text: &str, top: usize, scale: usize) {
@@ -95,6 +108,15 @@ fn draw_glyph(frame: &mut [u8], left: usize, top: usize, character: u8, scale: u
         b'W' => [0x11, 0x11, 0x11, 0x15, 0x15, 0x1b, 0x11],
         b'P' => [0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10],
         b'X' => [0x11, 0x11, 0x0a, 0x04, 0x0a, 0x11, 0x11],
+        b'0' => [0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e],
+        b'1' => [0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x1f],
+        b'2' => [0x1e, 0x01, 0x01, 0x0e, 0x10, 0x10, 0x1f],
+        b'4' => [0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02, 0x02],
+        b'5' => [0x1f, 0x10, 0x10, 0x1e, 0x01, 0x01, 0x1e],
+        b'6' => [0x0e, 0x10, 0x10, 0x1e, 0x11, 0x11, 0x0e],
+        b'7' => [0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+        b'8' => [0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e],
+        b'9' => [0x0e, 0x11, 0x11, 0x0f, 0x01, 0x01, 0x0e],
         b'3' => [0x1e, 0x01, 0x01, 0x0e, 0x01, 0x01, 0x1e],
         b' ' => [0; 7],
         _ => return,
@@ -202,5 +224,20 @@ mod tests {
             wifi_setup_frame("GD12-ab34EF"),
             Err("wifi_password_invalid")
         );
+    }
+
+    #[test]
+    fn wifi_setup_frame_contains_the_pairing_icon() {
+        let frame = wifi_setup_frame("GD12AB34EF").unwrap();
+        let icon_region = frame
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| {
+                let pixel = index * 8;
+                let y = pixel / DISPLAY_WIDTH;
+                y >= 42 && y < 112
+            })
+            .any(|(_, byte)| *byte != 0);
+        assert!(icon_region);
     }
 }
