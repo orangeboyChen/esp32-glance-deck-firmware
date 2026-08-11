@@ -46,8 +46,8 @@ pub enum NetworkRuntime {
 pub fn start_network() -> Result<NetworkRuntime> {
     RESTART_REQUESTED.store(false, Ordering::Release);
     let peripherals = Peripherals::take().context("take ESP peripherals")?;
-    let event_loop = EspSystemEventLoop::take().context("take system event loop")?;
     let partition = EspDefaultNvsPartition::take().context("open default NVS partition")?;
+    let event_loop = EspSystemEventLoop::take().context("take system event loop")?;
     let mut wifi = BlockingWifi::wrap(
         EspWifi::new(
             peripherals.modem,
