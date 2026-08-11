@@ -127,7 +127,7 @@ from either maintenance state and restores the last normal page.
 
 ```text
 ┌──────────────────────────────────────┐
-│                                      │
+│                 ⚙                    │
 │             MAINTENANCE              │
 │                                      │
 │ Short: check update                  │
@@ -180,7 +180,7 @@ the device is offline and running its temporary provisioning access point.
 
 ```text
 ┌──────────────────────────────────────┐
-│                                      │
+│                 🔗                    │
 │            1  2  3  4  5  6          │
 │                                      │
 │       Enter this code in Console     │
@@ -188,9 +188,9 @@ the device is offline and running its temporary provisioning access point.
 └──────────────────────────────────────┘
 ```
 
-Firmware renders the short-lived six-digit pairing code locally inside a
-border. The explanatory sentence is documentation only; the current local
-renderer contains the code rather than arbitrary prose.
+Firmware renders the short-lived six-digit pairing code and link glyph locally
+inside a border. The explanatory sentence is documentation only; the current
+local renderer contains the code rather than arbitrary prose.
 
 ## OTA status
 
