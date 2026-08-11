@@ -11,6 +11,7 @@ pub fn pairing_code_frame(pairing_code: &str) -> Result<Vec<u8>, &'static str> {
     }
     let mut frame = vec![0_u8; DISPLAY_IMAGE_BYTES];
     rectangle(&mut frame, 12, 12, DISPLAY_WIDTH - 24, DISPLAY_HEIGHT - 24);
+    draw_pairing_icon(&mut frame, 174, 34);
     for (index, digit) in pairing_code.bytes().enumerate() {
         let left = 33 + index * (DIGIT_WIDTH + DIGIT_GAP);
         draw_digit(&mut frame, left, 112, digit - b'0');
@@ -36,6 +37,7 @@ pub fn maintenance_frame(message: &str) -> Result<Vec<u8>, &'static str> {
     let top = (DISPLAY_HEIGHT - 7 * scale) / 2;
     let mut frame = vec![0_u8; DISPLAY_IMAGE_BYTES];
     rectangle(&mut frame, 12, 12, DISPLAY_WIDTH - 24, DISPLAY_HEIGHT - 24);
+    draw_maintenance_icon(&mut frame, 174, 34);
     for (index, byte) in bytes.iter().enumerate() {
         let x = left + index * (glyph_width + spacing);
         draw_glyph(&mut frame, x, top, *byte, scale);
@@ -69,6 +71,23 @@ fn draw_wifi_icon(frame: &mut [u8], left: usize, top: usize) {
         fill(frame, left + 2 + x * 6, top + 10 + x / 2, 4, 4);
         fill(frame, left + 12 + x * 4, top + 26 + x / 3, 4, 4);
     }
+}
+
+fn draw_pairing_icon(frame: &mut [u8], left: usize, top: usize) {
+    fill(frame, left + 8, top + 16, 28, 8);
+    fill(frame, left + 42, top + 16, 28, 8);
+    fill(frame, left + 16, top + 8, 20, 8);
+    fill(frame, left + 42, top + 24, 20, 8);
+    fill(frame, left + 30, top + 12, 12, 16);
+}
+
+fn draw_maintenance_icon(frame: &mut [u8], left: usize, top: usize) {
+    fill(frame, left + 24, top, 24, 8);
+    fill(frame, left + 24, top + 40, 24, 8);
+    fill(frame, left, top + 16, 8, 16);
+    fill(frame, left + 64, top + 16, 8, 16);
+    fill(frame, left + 16, top + 8, 40, 32);
+    fill(frame, left + 28, top + 20, 16, 8);
 }
 
 fn draw_centered_text(frame: &mut [u8], text: &str, top: usize, scale: usize) {
@@ -197,6 +216,20 @@ mod tests {
     }
 
     #[test]
+    fn pairing_frame_contains_a_link_icon() {
+        let frame = pairing_code_frame("123456").unwrap();
+        assert!(frame
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| {
+                let pixel = index * 8;
+                let y = pixel / DISPLAY_WIDTH;
+                y >= 34 && y < 82
+            })
+            .any(|(_, byte)| *byte != 0));
+    }
+
+    #[test]
     fn rejects_non_six_digit_codes() {
         assert_eq!(pairing_code_frame("12345"), Err("pairing_code_invalid"));
         assert_eq!(pairing_code_frame("12A456"), Err("pairing_code_invalid"));
@@ -212,6 +245,20 @@ mod tests {
             Err("maintenance_message_invalid")
         );
         assert_eq!(maintenance_frame(""), Err("maintenance_message_invalid"));
+    }
+
+    #[test]
+    fn maintenance_frame_contains_a_status_icon() {
+        let frame = maintenance_frame("MAINTENANCE").unwrap();
+        assert!(frame
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| {
+                let pixel = index * 8;
+                let y = pixel / DISPLAY_WIDTH;
+                y >= 34 && y < 82
+            })
+            .any(|(_, byte)| *byte != 0));
     }
 
     #[test]
