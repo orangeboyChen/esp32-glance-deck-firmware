@@ -180,7 +180,7 @@ impl DisplayCache for FlashDisplayCache {
 mod tests {
     use std::{
         fs,
-        sync::atomic::{AtomicU64, Ordering},
+        sync::atomic::{AtomicU32, Ordering},
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -202,7 +202,7 @@ mod tests {
     }
 
     fn test_root() -> PathBuf {
-        static NEXT_TEST_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        static NEXT_TEST_DIRECTORY: AtomicU32 = AtomicU32::new(0);
         std::env::temp_dir().join(format!(
             "glance-deck-cache-{}-{}-{}",
             std::process::id(),
