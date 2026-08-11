@@ -26,10 +26,11 @@ conventions, not special firmware page types.
 
 ```text
 ┌──────────────────────────────────────┐
-│ Usage                         Online │
+│ ↗ Usage                       Online │
 │ Pro plan                             │
 │                                      │
-│ Today used                 72 / 100 │
+│ Used 72%                  72 / 100   │
+│ [██████████████████░░░░░░░░]         │
 │ Today remaining                  28% │
 │ This week used                   411 │
 │ Resets                    Tomorrow │
@@ -37,6 +38,10 @@ conventions, not special firmware page types.
 │ Updated 09:30               ● ○ ○ ○ │
 └──────────────────────────────────────┘
 ```
+
+The usage icon (`↗`) and the filled meter are rendered into the immutable
+bitmap by the console. Firmware validates the image hash and only flushes the
+verified frame; it does not need a font or token-service credentials.
 
 The console derives daily and weekly values from source snapshots. It can use
 this format for any aggregated usage provider, not only a quota service.
@@ -157,6 +162,7 @@ DHCP successfully.
 ```text
 ┌──────────────────────────────────────┐
 │                                      │
+│                 )))                  │
 │              WIFI SETUP              │
 │                                      │
 │              GD12AB34EF              │
@@ -166,6 +172,9 @@ DHCP successfully.
 
 The shown ten-character value is the per-start WPA2 password. It is not sent
 to MQTT or stored in normal display documents.
+
+The `)))` glyph is drawn locally by firmware, so it remains available while
+the device is offline and running its temporary provisioning access point.
 
 ## Enrollment pairing
 
