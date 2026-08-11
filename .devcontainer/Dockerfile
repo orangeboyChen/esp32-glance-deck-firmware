@@ -16,13 +16,15 @@ ENV CARGO_HOME=/home/esp/.cargo
 ENV PATH=/home/esp/.cargo/bin:${PATH}
 
 RUN mkdir -p /home/esp/.cargo/bin \
-    && curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal \
     && case "$(uname -m)" in \
-        x86_64) espup_target=x86_64-unknown-linux-gnu ;; \
-        aarch64) espup_target=aarch64-unknown-linux-gnu ;; \
+        x86_64) host_target=x86_64-unknown-linux-gnu ;; \
+        aarch64) host_target=aarch64-unknown-linux-gnu ;; \
         *) echo "unsupported container architecture: $(uname -m)" >&2; exit 1 ;; \
       esac \
-    && curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/esp-rs/espup/releases/latest/download/espup-${espup_target}" -o /home/esp/.cargo/bin/espup \
+    && curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL "https://static.rust-lang.org/rustup/dist/${host_target}/rustup-init" -o /tmp/rustup-init \
+    && chmod +x /tmp/rustup-init \
+    && for attempt in 1 2 3 4 5; do /tmp/rustup-init -y --profile minimal && break; test "$attempt" = 5 && exit 1; sleep "$attempt"; done \
+    && curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL "https://github.com/esp-rs/espup/releases/latest/download/espup-${host_target}" -o /home/esp/.cargo/bin/espup \
     && chmod +x /home/esp/.cargo/bin/espup \
     && espup install --targets esp32s3 --toolchain-version ${ESPUP_TOOLCHAIN_VERSION} \
     && . /home/esp/export-esp.sh \
