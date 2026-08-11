@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use crate::{MAX_DISPLAY_RELEASE_BYTES, SUPPORTED_DISPLAY_DOCUMENT_VERSION};
 
 pub const DISPLAY_IMAGE_FORMAT: &str = "mono1-msb";
-// ST7305 native frame. The backend rotates its portrait design into this frame.
+// Row-major 400 x 300 source frame. The renderer converts this to ST7305 RAM layout.
 pub const DISPLAY_WIDTH: usize = 400;
 pub const DISPLAY_HEIGHT: usize = 300;
 pub const DISPLAY_IMAGE_BYTES: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT / 8;
