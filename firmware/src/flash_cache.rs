@@ -1,5 +1,5 @@
 use std::{
-    collections::VecDeque,
+    collections::{HashSet, VecDeque},
     fs, io,
     path::{Path, PathBuf},
 };
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::display::{DisplayCache, DisplayPage, DisplayRelease, DISPLAY_IMAGE_BYTES};
 
-pub const MAX_CACHED_PAGE_COUNT: usize = 8;
+pub const MAX_CACHED_PAGE_COUNT: usize = 20;
 
 #[derive(Debug)]
 pub enum FlashCacheError {
@@ -102,8 +102,23 @@ impl FlashDisplayCache {
     }
 
     fn evict_unreferenced(&mut self) -> Result<(), FlashCacheError> {
+        let referenced_hashes: HashSet<&str> = self
+            .index
+            .current_release
+            .iter()
+            .chain(self.index.previous_release.iter())
+            .flat_map(|release| release.pages.iter().map(|page| page.image_sha256.as_str()))
+            .collect();
         while self.index.page_hashes.len() > MAX_CACHED_PAGE_COUNT {
-            let Some(hash) = self.index.page_hashes.pop_front() else {
+            let Some(index) = self
+                .index
+                .page_hashes
+                .iter()
+                .position(|hash| !referenced_hashes.contains(hash.as_str()))
+            else {
+                break;
+            };
+            let Some(hash) = self.index.page_hashes.remove(index) else {
                 break;
             };
             let _ = fs::remove_file(self.page_path(&hash)?);
@@ -155,8 +170,8 @@ impl DisplayCache for FlashDisplayCache {
             fs::rename(temporary, destination)?;
             self.touch(&page.image_sha256);
         }
-        self.evict_unreferenced()?;
         self.index.previous_release = self.index.current_release.replace(release.clone());
+        self.evict_unreferenced()?;
         self.save_index()
     }
 }
@@ -235,26 +250,46 @@ mod tests {
     }
 
     #[test]
-    fn evicts_the_least_recently_added_frame_above_the_flash_limit() {
+    fn retains_frames_referenced_by_current_and_previous_releases() {
         let root = test_root();
         let mut cache = FlashDisplayCache::open(&root).unwrap();
-        let mut first_hash = String::new();
-        for index in 0..=MAX_CACHED_PAGE_COUNT {
+        let mut first_release_pages = Vec::new();
+        let mut first_release_frames = Vec::new();
+        for index in 0..10 {
             let frame = vec![index as u8; DISPLAY_IMAGE_BYTES];
             let mut page = page(&frame);
             page.page_id = format!("page-{index}");
-            let release = DisplayRelease {
-                release_id: format!("release-{index}"),
-                document_version: 1,
-                active_page_id: page.page_id.clone(),
-                pages: vec![page.clone()],
-            };
-            if index == 0 {
-                first_hash = page.image_sha256.clone();
-            }
-            cache.commit_release(&release, &[(page, frame)]).unwrap();
+            first_release_pages.push(page.clone());
+            first_release_frames.push((page, frame));
         }
-        assert!(!cache.contains_page(&first_hash).unwrap());
+        let first_release = DisplayRelease {
+            release_id: "release-1".to_owned(),
+            document_version: 1,
+            active_page_id: "page-0".to_owned(),
+            pages: first_release_pages.clone(),
+        };
+        cache.commit_release(&first_release, &first_release_frames).unwrap();
+
+        let mut second_release_pages = Vec::new();
+        let mut second_release_frames = Vec::new();
+        for index in 10..20 {
+            let frame = vec![index as u8; DISPLAY_IMAGE_BYTES];
+            let mut page = page(&frame);
+            page.page_id = format!("page-{index}");
+            second_release_pages.push(page.clone());
+            second_release_frames.push((page, frame));
+        }
+        let second_release = DisplayRelease {
+            release_id: "release-2".to_owned(),
+            document_version: 1,
+            active_page_id: "page-10".to_owned(),
+            pages: second_release_pages.clone(),
+        };
+        cache.commit_release(&second_release, &second_release_frames).unwrap();
+
+        for page in first_release_pages.iter().chain(second_release_pages.iter()) {
+            assert!(cache.contains_page(&page.image_sha256).unwrap());
+        }
         assert_eq!(cache.index.page_hashes.len(), MAX_CACHED_PAGE_COUNT);
         fs::remove_dir_all(root).unwrap();
     }

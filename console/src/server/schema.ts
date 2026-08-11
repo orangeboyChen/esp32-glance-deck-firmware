@@ -20,10 +20,11 @@ export const administrators = pgTable('administrators', {
 export const sessions = pgTable('sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
   administrator_id: uuid('administrator_id').references(() => administrators.id, { onDelete: 'cascade' }).notNull(),
+  token_selector: varchar('token_selector', { length: 32 }),
   token_hash: text('token_hash').notNull(),
   expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
+}, (table) => [uniqueIndex('sessions_token_selector_unique').on(table.token_selector)])
 
 export const passkeys = pgTable('passkeys', {
   id: uuid('id').defaultRandom().primaryKey(),

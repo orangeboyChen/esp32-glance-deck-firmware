@@ -35,13 +35,14 @@ export async function authenticate_administrator(email: string, password: string
 
 export async function create_session(administrator_id: string) {
   if (!db) throw new Error('database_unavailable')
-  const token = randomBytes(32).toString('base64url')
-  const token_hash = await argon2.hash(token, { type: argon2.argon2id })
+  const token_selector = randomBytes(12).toString('base64url')
+  const token_secret = randomBytes(32).toString('base64url')
+  const token_hash = await argon2.hash(token_secret, { type: argon2.argon2id })
   const expires_at = new Date(Date.now() + session_duration_ms)
-  await db.insert(sessions).values({ administrator_id, token_hash, expires_at })
+  await db.insert(sessions).values({ administrator_id, token_selector, token_hash, expires_at })
 
   const cookie_store = await cookies()
-  cookie_store.set(session_cookie_name, token, {
+  cookie_store.set(session_cookie_name, `${token_selector}.${token_secret}`, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -54,17 +55,19 @@ export async function current_administrator() {
   if (!db) return undefined
   const token = (await cookies()).get(session_cookie_name)?.value
   if (!token) return undefined
+  const [token_selector, token_secret] = token.split('.')
+  if (!token_selector || !token_secret || token.split('.').length !== 2) return undefined
 
-  const candidates = await db
+  const [candidate] = await db
     .select({ session_id: sessions.id, token_hash: sessions.token_hash, administrator: administrators })
     .from(sessions)
     .innerJoin(administrators, eq(sessions.administrator_id, administrators.id))
-    .where(and(gt(sessions.expires_at, new Date())))
+    .where(and(eq(sessions.token_selector, token_selector), gt(sessions.expires_at, new Date())))
+    .limit(1)
 
-  for (const candidate of candidates) {
-    if (await argon2.verify(candidate.token_hash, token)) return candidate.administrator
-  }
-  return undefined
+  return candidate && await argon2.verify(candidate.token_hash, token_secret)
+    ? candidate.administrator
+    : undefined
 }
 
 export async function clear_session() {

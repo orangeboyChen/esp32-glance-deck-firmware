@@ -55,6 +55,11 @@ CARGO_TARGET_DIR=/private/tmp/glance-deck-host-target cargo test --manifest-path
 Replace every development secret before exposing the console through a reverse
 proxy.
 
+When running the Compose stack with real hardware, set `DEVICE_ASSET_URL` to
+the externally reachable HTTPS origin (for example the Traefik hostname). The
+default Compose stack intentionally does not expose a device-safe asset URL:
+an ESP32 cannot use the host's `localhost`, and firmware rejects plain HTTP.
+
 ## License
 
 The license will be selected before the first functional release.

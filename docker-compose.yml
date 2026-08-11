@@ -8,7 +8,7 @@ services:
       MQTT_URL: mqtt://mosquitto:1883
       MQTT_ALLOW_PLAINTEXT_INTERNAL: "true"
       APP_URL: ${APP_URL:-http://localhost:3000}
-      DEVICE_ASSET_URL: ${DEVICE_ASSET_URL:-https://localhost:3000}
+      DEVICE_ASSET_URL: ${DEVICE_ASSET_URL:-}
       DEVICE_MQTT_URL: ${DEVICE_MQTT_URL:-mqtts://mqtt.example.invalid}
       APP_MASTER_KEY: ${APP_MASTER_KEY:-MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE}
       DEVICE_ASSET_SIGNING_KEY: ${DEVICE_ASSET_SIGNING_KEY:-development-asset-key-change-me}
@@ -38,7 +38,7 @@ services:
       MQTT_URL: mqtt://mosquitto:1883
       MQTT_ALLOW_PLAINTEXT_INTERNAL: "true"
       APP_URL: ${APP_URL:-http://localhost:3000}
-      DEVICE_ASSET_URL: ${DEVICE_ASSET_URL:-https://localhost:3000}
+      DEVICE_ASSET_URL: ${DEVICE_ASSET_URL:-}
       DEVICE_MQTT_URL: ${DEVICE_MQTT_URL:-mqtts://mqtt.example.invalid}
       APP_MASTER_KEY: ${APP_MASTER_KEY:-MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE}
       DEVICE_ASSET_SIGNING_KEY: ${DEVICE_ASSET_SIGNING_KEY:-development-asset-key-change-me}

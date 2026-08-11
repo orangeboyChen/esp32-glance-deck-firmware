@@ -1,5 +1,6 @@
 import { isIP } from 'node:net'
 import { lookup } from 'node:dns/promises'
+import { request as https_request } from 'node:https'
 
 import { and, desc, eq, gte } from 'drizzle-orm'
 
@@ -45,7 +46,13 @@ function is_private_address(address: string) {
   return address === '::1' || address.startsWith('fc') || address.startsWith('fd') || address.startsWith('fe80:')
 }
 
-async function safe_url(base_url: string, request_path: string) {
+type SafeSourceUrl = {
+  url: URL
+  address?: string
+  family?: 4 | 6
+}
+
+async function safe_url(base_url: string, request_path: string): Promise<SafeSourceUrl> {
   const url = new URL(request_path, base_url)
   const local_dev = process.env.NODE_ENV !== 'production' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
   if (url.protocol !== 'https:' && !local_dev) throw new Error('source_https_required')
@@ -56,8 +63,49 @@ async function safe_url(base_url: string, request_path: string) {
   if (!local_dev) {
     const resolved = await lookup(url.hostname, { all: true })
     if (resolved.length === 0 || resolved.some(({ address }) => is_private_address(address))) throw new Error('source_private_address_blocked')
+    const target = resolved[0]
+    if (!target) throw new Error('source_address_unavailable')
+    const family = isIP(target.address)
+    if (family !== 4 && family !== 6) throw new Error('source_address_invalid')
+    return { url, address: target.address, family }
   }
-  return url
+  return { url }
+}
+
+async function fetch_source(source_url: SafeSourceUrl, method: string, headers: Record<string, string>, body: string | undefined) {
+  if (!source_url.address || !source_url.family) {
+    const response = await fetch(source_url.url, { method, headers, body, redirect: 'error', signal: AbortSignal.timeout(10_000) })
+    return { status: response.status, content_type: response.headers.get('content-type') ?? '', raw: await response.text() }
+  }
+
+  return new Promise<{ status: number; content_type: string; raw: string }>((resolve, reject) => {
+    const request = https_request({
+      protocol: source_url.url.protocol,
+      hostname: source_url.url.hostname,
+      port: source_url.url.port || undefined,
+      path: `${source_url.url.pathname}${source_url.url.search}`,
+      method,
+      headers,
+      servername: source_url.url.hostname,
+      lookup: (_hostname, _options, callback) => callback(null, source_url.address!, source_url.family!),
+    }, (response) => {
+      const chunks: Buffer[] = []
+      let size = 0
+      response.on('data', (chunk: Buffer) => {
+        size += chunk.length
+        if (size > MAX_RESPONSE_BYTES) request.destroy(new Error('source_response_too_large'))
+        else chunks.push(chunk)
+      })
+      response.on('end', () => resolve({
+        status: response.statusCode ?? 0,
+        content_type: String(response.headers['content-type'] ?? ''),
+        raw: Buffer.concat(chunks).toString('utf8'),
+      }))
+    })
+    request.setTimeout(10_000, () => request.destroy(new Error('source_request_timeout')))
+    request.once('error', reject)
+    request.end(body)
+  })
 }
 
 export async function refresh_usage_source(source_id: string) {
@@ -66,15 +114,13 @@ export async function refresh_usage_source(source_id: string) {
   if (!source) throw new Error('source_not_found')
   try {
     const secrets = decrypt_secret(source.secret_ciphertext)
-    const url = await safe_url(source.base_url, source.request_path)
+    const source_url = await safe_url(source.base_url, source.request_path)
     const headers = Object.fromEntries(Object.entries(source.headers).map(([key, value]) => [key, interpolate(value, secrets)]))
     const body = source.body_template ? interpolate(source.body_template, secrets) : undefined
-    const response = await fetch(url, { method: source.method, headers, body, redirect: 'error', signal: AbortSignal.timeout(10_000) })
-    if (!response.ok) throw new Error(`source_http_${response.status}`)
-    const content_type = response.headers.get('content-type') ?? ''
-    if (!content_type.includes('json')) throw new Error('source_content_type_invalid')
-    const raw = await response.text()
-    if (raw.length > MAX_RESPONSE_BYTES) throw new Error('source_response_too_large')
+    const response = await fetch_source(source_url, source.method, headers, body)
+    if (response.status < 200 || response.status >= 300) throw new Error(`source_http_${response.status}`)
+    if (!response.content_type.includes('json')) throw new Error('source_content_type_invalid')
+    const raw = response.raw
     const parsed: unknown = JSON.parse(raw)
     const values = Object.fromEntries(fields.map((field) => [field, source.mapper[field] ? json_path(parsed, source.mapper[field]) : null])) as Record<string, MappedValue>
     const previous = await db.select({ values: source_snapshots.values }).from(source_snapshots)

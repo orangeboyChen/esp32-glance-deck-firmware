@@ -1,7 +1,7 @@
-import { count, desc, eq, gte } from 'drizzle-orm'
+import { and, count, desc, eq, gte } from 'drizzle-orm'
 
 import { db } from './db'
-import { alert_rules, devices, display_releases, ota_jobs, source_snapshots, usage_sources } from './schema'
+import { alert_rules, devices, display_release_pages, display_releases, ota_jobs, source_snapshots, usage_sources } from './schema'
 
 export type DeviceSummary = {
   id: string
@@ -42,10 +42,11 @@ export async function list_devices(): Promise<DeviceSummary[]> {
       battery_mv: devices.battery_mv,
       power_updated_at: devices.power_updated_at,
       last_seen_at: devices.last_seen_at,
-      preview_svg: display_releases.preview_svg,
+      preview_svg: display_release_pages.preview_svg,
     })
     .from(devices)
     .leftJoin(display_releases, eq(devices.release_id, display_releases.id))
+    .leftJoin(display_release_pages, and(eq(display_release_pages.release_id, display_releases.id), eq(display_release_pages.page_id, devices.active_page_id)))
 
   return Promise.all(rows.map(async (row) => {
     const [snapshot] = await database.select({ values: source_snapshots.values })

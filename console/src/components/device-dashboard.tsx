@@ -52,10 +52,11 @@ export function DeviceDashboard({ devices, summary }: DeviceDashboardProps) {
   const [page_saving, set_page_saving] = useState(false)
   const [enrollment_open, set_enrollment_open] = useState(false)
   const [device_filter, set_device_filter] = useState<'all' | 'attention'>('all')
+  const [preview_svg_by_device, set_preview_svg_by_device] = useState<Record<string, string>>({})
   const change_locale = (next_locale: 'en' | 'zh-CN' | 'ja') => router.replace(pathname, { locale: next_locale })
   const visible_devices = device_filter === 'all'
     ? devices
-    : devices.filter((device) => device.status !== 'online' || device.ota_status !== null || device.power_source === 'unavailable' || device.active_page_id === 'alerts')
+    : devices.filter((device) => device.status !== 'online' || device.ota_status !== null || device.active_page_id === 'alerts')
 
   const select_device = (device: DeviceSummary) => {
     set_selected_device_id(device.id)
@@ -121,6 +122,8 @@ export function DeviceDashboard({ devices, summary }: DeviceDashboardProps) {
     try {
       const response = await fetch(`/api/v1/devices/${device.id}/preview`, { cache: 'no-store' })
       if (!response.ok) throw new Error(translate('previewRejected'))
+      const preview_svg = await response.text()
+      set_preview_svg_by_device((previews) => ({ ...previews, [device.id]: preview_svg }))
       resolve_command({ device_id: device.id, message: translate('previewCurrent'), phase: 'accepted' })
       toast.success(translate('previewRefreshed'))
     } catch (error) {
@@ -215,7 +218,7 @@ export function DeviceDashboard({ devices, summary }: DeviceDashboardProps) {
                   variant="outlined"
                 >
                   <button className="preview-select" onClick={() => select_device(device)} type="button">
-                    <DevicePreview title={device.active_page_id} previewSvg={device.preview_svg} isSelected={selected_preview_id === device.id} />
+                    <DevicePreview title={device.active_page_id} previewSvg={preview_svg_by_device[device.id] ?? device.preview_svg} isSelected={selected_preview_id === device.id} />
                   </button>
 
                   <Flexbox className="device-meta" gap={16}>

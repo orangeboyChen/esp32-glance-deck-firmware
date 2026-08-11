@@ -4,7 +4,7 @@ import { require_api_scope } from '@/server/auth'
 import { db } from '@/server/db'
 import { devices, firmware_releases, ota_jobs } from '@/server/schema'
 import { create_ota_nonce } from '@/server/ota'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 const ota_schema = z.object({ firmware_release_id: z.uuid().optional() })
@@ -19,11 +19,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ dev
   if (!body.success) return NextResponse.json({ error: 'invalid_ota_request' }, { status: 400 })
   const { device_id } = await params
   const [device] = await db.select().from(devices).where(eq(devices.id, device_id)).limit(1)
+  if (!device) return NextResponse.json({ error: 'device_or_release_not_found' }, { status: 404 })
   const release_query = body.data.firmware_release_id
     ? db.select().from(firmware_releases).where(eq(firmware_releases.id, body.data.firmware_release_id)).limit(1)
-    : db.select().from(firmware_releases).where(eq(firmware_releases.channel, 'stable')).orderBy(firmware_releases.created_at).limit(1)
+    : db.select().from(firmware_releases)
+      .where(and(eq(firmware_releases.channel, 'stable'), eq(firmware_releases.board_model, device.board_model)))
+      .orderBy(desc(firmware_releases.created_at))
+      .limit(1)
   const [release] = await release_query
-  if (!device || !release) return NextResponse.json({ error: 'device_or_release_not_found' }, { status: 404 })
+  if (!release) return NextResponse.json({ error: 'device_or_release_not_found' }, { status: 404 })
   if (release.board_model !== device.board_model) return NextResponse.json({ error: 'incompatible_release' }, { status: 409 })
   const [duplicate] = await db.select({ id: ota_jobs.id }).from(ota_jobs)
     .where(and(eq(ota_jobs.device_id, device_id), eq(ota_jobs.firmware_release_id, release.id), eq(ota_jobs.status, 'queued'))).limit(1)
