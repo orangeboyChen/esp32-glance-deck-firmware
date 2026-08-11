@@ -1,9 +1,0 @@
-resources:
-  - url: /local/glance-deck-preview-card.js
-    type: module
-
-# Copy `glance-deck-preview-card.js` to Home Assistant's `config/www/` directory,
-# then use a Glance Deck sensor entity as the card entity.
-card:
-  type: custom:glance-deck-preview-card
-  entity: sensor.glance_deck_office_current_page

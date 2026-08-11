@@ -1,10 +1,10 @@
 {
-  "name": "ESP32 Glance Deck",
+  "name": "ESP32 Glance Deck Firmware",
   "build": {
     "dockerfile": "Dockerfile"
   },
   "remoteUser": "esp",
-  "workspaceFolder": "/workspaces/esp32-glance-deck",
+  "workspaceFolder": "/workspaces/esp32-glance-deck-firmware",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -13,10 +13,10 @@
       ]
     }
   },
-  "postCreateCommand": "bun install",
   "remoteEnv": {
     "PATH": "/home/esp/.bun/bin:/home/esp/.cargo/bin:${containerEnv:PATH}",
     "MCU": "esp32s3",
+    "RUSTUP_TOOLCHAIN": "esp",
     "ESP_IDF_VERSION": "v5.3.1",
     "ESP_IDF_COMPONENT_MANAGER": "false"
   }
