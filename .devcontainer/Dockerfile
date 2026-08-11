@@ -35,8 +35,6 @@ ENV RUSTUP_TOOLCHAIN=esp
 
 RUN bash -lc '. /home/esp/export-esp.sh && cargo install ldproxy --locked'
 
-RUN cargo install cargo-espflash --version 4.3.0 --locked
-
 RUN curl -fsSL https://bun.sh/install | bash
 
 WORKDIR /workspaces/esp32-glance-deck-firmware
