@@ -19,7 +19,15 @@ static esp_err_t command(uint8_t value) {
 }
 
 static esp_err_t command_data(uint8_t value, const uint8_t *values, size_t length) {
-    return esp_lcd_panel_io_tx_param(io, value, values, length);
+    ESP_RETURN_ON_ERROR(command(value), "rlcd", "command");
+    for (size_t index = 0; index < length; index++) {
+        ESP_RETURN_ON_ERROR(
+            esp_lcd_panel_io_tx_param(io, -1, &values[index], 1),
+            "rlcd",
+            "parameter"
+        );
+    }
+    return ESP_OK;
 }
 
 esp_err_t glance_deck_rlcd_init(void) {
