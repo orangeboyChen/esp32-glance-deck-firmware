@@ -29,9 +29,25 @@ pub fn page_indicator_frame(
     let top = DISPLAY_HEIGHT as i32 - 22;
     for index in 0..page_count {
         let center = center_x - group_width / 2 + index as i32 * spacing;
+        clear_circle(&mut overlay, center, top, 4);
         draw_circle(&mut overlay, center, top, 4, index == active_index);
     }
     Some(overlay)
+}
+
+fn clear_circle(frame: &mut [u8], center_x: i32, center_y: i32, radius: i32) {
+    for y in center_y - radius..=center_y + radius {
+        for x in center_x - radius..=center_x + radius {
+            if x < 0 || y < 0 || x >= DISPLAY_WIDTH as i32 || y >= DISPLAY_HEIGHT as i32 {
+                continue;
+            }
+            let distance = (x - center_x) * (x - center_x) + (y - center_y) * (y - center_y);
+            if distance <= radius * radius {
+                let offset = y as usize * DISPLAY_WIDTH + x as usize;
+                frame[offset / 8] &= !(0x80 >> (offset % 8));
+            }
+        }
+    }
 }
 
 fn draw_circle(frame: &mut [u8], center_x: i32, center_y: i32, radius: i32, filled: bool) {
@@ -56,9 +72,13 @@ mod tests {
 
     #[test]
     fn overlays_bounded_circular_page_indicators_without_mutating_source() {
-        let frame = vec![0; DISPLAY_IMAGE_BYTES];
+        let frame = vec![0xff; DISPLAY_IMAGE_BYTES];
         let overlay = page_indicator_frame(&frame, 1, 3).unwrap();
         assert_ne!(overlay, frame);
+        let inactive_center = 278 * DISPLAY_WIDTH + 186;
+        assert_eq!(overlay[inactive_center / 8] & (0x80 >> (inactive_center % 8)), 0);
+        let active_center = 278 * DISPLAY_WIDTH + 200;
+        assert_ne!(overlay[active_center / 8] & (0x80 >> (active_center % 8)), 0);
         assert!(page_indicator_frame(&frame, 3, 3).is_none());
         assert!(page_indicator_frame(&frame, 0, 11).is_none());
     }
