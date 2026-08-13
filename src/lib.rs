@@ -29,6 +29,7 @@ pub mod release_sync;
 #[cfg(feature = "esp")]
 pub mod rlcd;
 pub mod runtime;
+pub mod st7305;
 
 pub const MAX_DISPLAY_RELEASE_BYTES: usize = 2 * 1024 * 1024;
 pub const SUPPORTED_DISPLAY_DOCUMENT_VERSION: u16 = 1;

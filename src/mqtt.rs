@@ -46,34 +46,34 @@ impl DeviceTopics {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Device_command_action {
-    Show_page,
-    Next_page,
-    Previous_page,
-    Set_rotation,
-    Refresh_release,
-    Enter_maintenance,
+pub enum DeviceCommandAction {
+    ShowPage,
+    NextPage,
+    PreviousPage,
+    SetRotation,
+    RefreshRelease,
+    EnterMaintenance,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Device_command {
+pub struct DeviceCommand {
     pub command_id: String,
-    pub action: Device_command_action,
+    pub action: DeviceCommandAction,
     #[serde(default)]
-    pub payload: Command_payload,
+    pub payload: CommandPayload,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Command_payload {
+pub struct CommandPayload {
     #[serde(default)]
     pub page_id: Option<String>,
     #[serde(default)]
     pub rotation_seconds: Option<u16>,
 }
 
-impl Device_command {
+impl DeviceCommand {
     pub fn from_payload(payload: &[u8]) -> Result<Self, serde_json::Error> {
         if payload.len() > MAX_MQTT_PAYLOAD_BYTES {
             return Err(serde_json::Error::io(std::io::Error::new(
@@ -96,19 +96,19 @@ pub struct DeviceState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub command_status: Option<Command_status>,
+    pub command_status: Option<CommandStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub firmware_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub power: Option<Device_power_state>,
+    pub power: Option<DevicePowerState>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Device_power_state {
-    pub source: Power_source,
+pub struct DevicePowerState {
+    pub source: PowerSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub charging: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -119,43 +119,45 @@ pub struct Device_power_state {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Power_source {
+pub enum PowerSource {
     Usb,
     Battery,
-    Usb_and_battery,
+    UsbAndBattery,
     Unavailable,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Command_status {
+pub enum CommandStatus {
     Confirmed,
     Failed,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Ota_phase {
+pub enum OtaPhase {
     Downloading,
     Verifying,
     Rebooting,
     Healthy,
-    Rolled_back,
+    RolledBack,
     Failed,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Ota_state {
+pub struct OtaState {
     pub job_id: String,
-    pub phase: Ota_phase,
+    pub phase: OtaPhase,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub progress_percent: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Ota_command {
+pub struct OtaCommand {
     pub job_id: String,
     pub nonce: String,
     pub version: String,
@@ -165,16 +167,16 @@ pub struct Ota_command {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub enum Ota_check_status {
+pub enum OtaCheckStatus {
     Available,
-    Up_to_date,
+    UpToDate,
     Failed,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Ota_check_state {
-    pub status: Ota_check_status,
+pub struct OtaCheckState {
+    pub status: OtaCheckStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -189,7 +191,7 @@ pub struct Ota_check_state {
     pub error_message: Option<String>,
 }
 
-impl Ota_command {
+impl OtaCommand {
     pub fn validate(&self) -> Result<(), &'static str> {
         if self.job_id.is_empty()
             || self.job_id.len() > 96
@@ -216,7 +218,7 @@ impl Ota_command {
     }
 }
 
-pub trait Mqtt_client {
+pub trait MqttClient {
     type Error;
 
     fn publish(&mut self, topic: &str, payload: &[u8], retained: bool) -> Result<(), Self::Error>;
@@ -236,17 +238,17 @@ mod tests {
 
     #[test]
     fn parses_supported_command() {
-        let command: Device_command = serde_json::from_str(
+        let command: DeviceCommand = serde_json::from_str(
             r#"{"command_id":"abc","action":"show_page","payload":{"page_id":"usage"}}"#,
         )
         .unwrap();
-        assert_eq!(command.action, Device_command_action::Show_page);
+        assert_eq!(command.action, DeviceCommandAction::ShowPage);
         assert_eq!(command.payload.page_id.as_deref(), Some("usage"));
     }
 
     #[test]
     fn rejects_unknown_command_fields() {
-        assert!(Device_command::from_payload(
+        assert!(DeviceCommand::from_payload(
             br#"{"command_id":"abc","action":"next_page","payload":{"unexpected":true}}"#
         )
         .is_err());
@@ -254,7 +256,7 @@ mod tests {
 
     #[test]
     fn validates_remote_ota_command() {
-        let command = Ota_command {
+        let command = OtaCommand {
             job_id: "job-123".to_owned(),
             nonce: "nonce".to_owned(),
             version: "1.0.0".to_owned(),
@@ -266,12 +268,12 @@ mod tests {
 
     #[test]
     fn parses_a_complete_local_ota_candidate() {
-        let state: Ota_check_state = serde_json::from_str(&format!(
+        let state: OtaCheckState = serde_json::from_str(&format!(
             r#"{{"status":"available","job_id":"job-1","nonce":"nonce","version":"1.2.0","manifest_url":"https://example.test/manifest.json","image_sha256":"{}"}}"#,
             "a".repeat(64),
         ))
         .unwrap();
-        assert_eq!(state.status, Ota_check_status::Available);
+        assert_eq!(state.status, OtaCheckStatus::Available);
         assert_eq!(state.job_id.as_deref(), Some("job-1"));
         assert_eq!(
             state.image_sha256.as_deref(),
@@ -281,7 +283,7 @@ mod tests {
 
     #[test]
     fn rejects_invalid_ota_and_oversized_mqtt_payloads() {
-        let mut command = Ota_command {
+        let mut command = OtaCommand {
             job_id: "job".to_owned(),
             nonce: "nonce".to_owned(),
             version: "1".to_owned(),
@@ -293,6 +295,6 @@ mod tests {
         command.manifest_url = "https://example.test".to_owned();
         command.image_sha256 = "a".repeat(63);
         assert_eq!(command.validate(), Err("ota_hash_invalid"));
-        assert!(Device_command::from_payload(&vec![b'x'; MAX_MQTT_PAYLOAD_BYTES + 1]).is_err());
+        assert!(DeviceCommand::from_payload(&vec![b'x'; MAX_MQTT_PAYLOAD_BYTES + 1]).is_err());
     }
 }

@@ -9,7 +9,7 @@ use esp_idf_svc::mqtt::client::{Details, EspMqttClient, MqttClientConfiguration}
 
 use crate::{
     config::MqttConfig,
-    mqtt::{DeviceTopics, Mqtt_client, MAX_MQTT_PAYLOAD_BYTES},
+    mqtt::{DeviceTopics, MqttClient, MAX_MQTT_PAYLOAD_BYTES},
 };
 
 const MAX_PENDING_MESSAGES: usize = 4;
@@ -120,7 +120,7 @@ impl EspDeviceMqtt {
     }
 }
 
-impl Mqtt_client for EspDeviceMqtt {
+impl MqttClient for EspDeviceMqtt {
     type Error = esp_idf_svc::sys::EspError;
 
     fn publish(&mut self, topic: &str, payload: &[u8], retained: bool) -> Result<(), Self::Error> {

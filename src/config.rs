@@ -28,15 +28,15 @@ pub struct DeviceConfig {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConfigError {
-    Empty_device_id,
-    Device_id_too_long,
-    Invalid_device_id,
-    Empty_wifi_ssid,
-    Wifi_ssid_too_long,
-    Empty_mqtt_host,
-    Mqtt_host_too_long,
-    Insecure_mqtt_url,
-    Empty_mqtt_credentials,
+    EmptyDeviceId,
+    DeviceIdTooLong,
+    InvalidDeviceId,
+    EmptyWifiSsid,
+    WifiSsidTooLong,
+    EmptyMqttHost,
+    MqttHostTooLong,
+    InsecureMqttUrl,
+    EmptyMqttCredentials,
 }
 
 impl DeviceConfig {
@@ -44,24 +44,24 @@ impl DeviceConfig {
         validate_device_id(&self.device_id)?;
 
         if self.wifi.ssid.is_empty() {
-            return Err(ConfigError::Empty_wifi_ssid);
+            return Err(ConfigError::EmptyWifiSsid);
         }
         if self.wifi.ssid.len() > MAX_WIFI_SSID_LEN {
-            return Err(ConfigError::Wifi_ssid_too_long);
+            return Err(ConfigError::WifiSsidTooLong);
         }
         if self.mqtt.broker_url.is_empty() {
-            return Err(ConfigError::Empty_mqtt_host);
+            return Err(ConfigError::EmptyMqttHost);
         }
         if self.mqtt.broker_url.len() > MAX_MQTT_HOST_LEN {
-            return Err(ConfigError::Mqtt_host_too_long);
+            return Err(ConfigError::MqttHostTooLong);
         }
         if !(self.mqtt.broker_url.starts_with("mqtts://")
             || self.mqtt.broker_url.starts_with("wss://"))
         {
-            return Err(ConfigError::Insecure_mqtt_url);
+            return Err(ConfigError::InsecureMqttUrl);
         }
         if self.mqtt.username.is_empty() || self.mqtt.password.is_empty() {
-            return Err(ConfigError::Empty_mqtt_credentials);
+            return Err(ConfigError::EmptyMqttCredentials);
         }
         Ok(())
     }
@@ -74,20 +74,20 @@ impl DeviceConfig {
 
 pub fn validate_device_id(device_id: &str) -> Result<(), ConfigError> {
     if device_id.is_empty() {
-        return Err(ConfigError::Empty_device_id);
+        return Err(ConfigError::EmptyDeviceId);
     }
     if device_id.len() > MAX_DEVICE_ID_LEN {
-        return Err(ConfigError::Device_id_too_long);
+        return Err(ConfigError::DeviceIdTooLong);
     }
     if !device_id.bytes().all(|character| {
         character.is_ascii_lowercase() || character.is_ascii_digit() || character == b'-'
     }) {
-        return Err(ConfigError::Invalid_device_id);
+        return Err(ConfigError::InvalidDeviceId);
     }
     Ok(())
 }
 
-pub trait Config_store {
+pub trait ConfigStore {
     type Error;
 
     fn load(&self) -> Result<Option<DeviceConfig>, Self::Error>;
@@ -123,33 +123,33 @@ mod tests {
     fn rejects_unsafe_broker_transport() {
         let mut config = device_config();
         config.mqtt.broker_url = "mqtt://broker.example".to_owned();
-        assert_eq!(config.validate(), Err(ConfigError::Insecure_mqtt_url));
+        assert_eq!(config.validate(), Err(ConfigError::InsecureMqttUrl));
     }
 
     #[test]
     fn validates_device_identifier_and_connection_limits() {
-        assert_eq!(validate_device_id(""), Err(ConfigError::Empty_device_id));
+        assert_eq!(validate_device_id(""), Err(ConfigError::EmptyDeviceId));
         assert_eq!(
             validate_device_id("UPPER"),
-            Err(ConfigError::Invalid_device_id)
+            Err(ConfigError::InvalidDeviceId)
         );
         assert_eq!(
             validate_device_id(&"a".repeat(MAX_DEVICE_ID_LEN + 1)),
-            Err(ConfigError::Device_id_too_long)
+            Err(ConfigError::DeviceIdTooLong)
         );
         let mut config = device_config();
         config.wifi.ssid.clear();
-        assert_eq!(config.validate(), Err(ConfigError::Empty_wifi_ssid));
+        assert_eq!(config.validate(), Err(ConfigError::EmptyWifiSsid));
         config.wifi.ssid = "a".repeat(MAX_WIFI_SSID_LEN + 1);
-        assert_eq!(config.validate(), Err(ConfigError::Wifi_ssid_too_long));
+        assert_eq!(config.validate(), Err(ConfigError::WifiSsidTooLong));
         config.wifi.ssid = "lan".to_owned();
         config.mqtt.broker_url.clear();
-        assert_eq!(config.validate(), Err(ConfigError::Empty_mqtt_host));
+        assert_eq!(config.validate(), Err(ConfigError::EmptyMqttHost));
         config.mqtt.broker_url = "s".repeat(MAX_MQTT_HOST_LEN + 1);
-        assert_eq!(config.validate(), Err(ConfigError::Mqtt_host_too_long));
+        assert_eq!(config.validate(), Err(ConfigError::MqttHostTooLong));
         config.mqtt.broker_url = "mqtts://broker.example".to_owned();
         config.mqtt.username.clear();
-        assert_eq!(config.validate(), Err(ConfigError::Empty_mqtt_credentials));
+        assert_eq!(config.validate(), Err(ConfigError::EmptyMqttCredentials));
         assert_eq!(
             device_config().topics().unwrap().state(),
             "glance_deck/office-deck/state"

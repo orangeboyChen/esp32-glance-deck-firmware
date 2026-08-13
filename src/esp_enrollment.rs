@@ -8,13 +8,13 @@ use serde::Deserialize;
 
 use crate::{
     config::{DeviceConfig, WifiConfig},
-    enrollment::Enrollment_session,
+    enrollment::EnrollmentSession,
 };
 
 const MAX_RESPONSE_BYTES: usize = 1024;
 
 #[derive(Deserialize)]
-struct Claim_response {
+struct ClaimResponse {
     status: String,
     device_id: Option<String>,
     mqtt: Option<crate::config::MqttConfig>,
@@ -22,7 +22,7 @@ struct Claim_response {
 
 pub fn announce_and_claim(
     control_plane_url: &str,
-    session: &Enrollment_session,
+    session: &EnrollmentSession,
     wifi: WifiConfig,
 ) -> Result<Option<DeviceConfig>> {
     if !control_plane_url.starts_with("https://") {
@@ -44,7 +44,7 @@ pub fn announce_and_claim(
         ),
         &serde_json::json!({ "pairing_code": session.pairing_code, "claim_secret": session.claim_secret }),
     )?;
-    let claim: Claim_response = serde_json::from_slice(&response)?;
+    let claim: ClaimResponse = serde_json::from_slice(&response)?;
     if claim.status == "pending" {
         return Ok(None);
     }

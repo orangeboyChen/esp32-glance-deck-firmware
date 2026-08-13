@@ -27,7 +27,6 @@ const ACTIVE_WIFI_KEY: &str = "wifi_active";
 const CANDIDATE_WIFI_KEY: &str = "wifi_candidate";
 const MAX_WIFI_CONFIG_BYTES: usize = 256;
 const MAX_PORTAL_REQUEST_BYTES: usize = 256;
-const PORTAL_SSID: &str = "GlanceDeck-Setup";
 const PORTAL_ADDRESS: &str = "192.168.4.1";
 static RESTART_REQUESTED: AtomicBool = AtomicBool::new(false);
 
@@ -39,6 +38,7 @@ pub enum NetworkRuntime {
     Provisioning {
         wifi: BlockingWifi<EspWifi<'static>>,
         _portal: EspHttpServer<'static>,
+        portal_ssid: String,
         portal_password: String,
     },
 }
@@ -132,9 +132,11 @@ fn start_portal(
     mut wifi: BlockingWifi<EspWifi<'static>>,
     partition: EspDefaultNvsPartition,
 ) -> Result<NetworkRuntime> {
+    let portal_ssid = portal_ssid()?;
     let portal_password = format!("GD{:08X}", unsafe { esp_idf_svc::sys::esp_random() });
     wifi.set_configuration(&Configuration::AccessPoint(AccessPointConfiguration {
-        ssid: PORTAL_SSID
+        ssid: portal_ssid
+            .as_str()
             .try_into()
             .map_err(|_| anyhow::anyhow!("portal_ssid_invalid"))?,
         password: portal_password
@@ -156,14 +158,24 @@ fn start_portal(
     )?));
     let portal = start_portal_server(store)?;
     info!(
-        "provisioning AP started; SSID={PORTAL_SSID}, password={portal_password}, URL=http://{PORTAL_ADDRESS}"
+        "provisioning AP started; SSID={portal_ssid}, password={portal_password}, URL=http://{PORTAL_ADDRESS}"
     );
 
     Ok(NetworkRuntime::Provisioning {
         wifi,
         _portal: portal,
+        portal_ssid,
         portal_password,
     })
+}
+
+fn portal_ssid() -> Result<String> {
+    let mut mac = [0_u8; 6];
+    let result = unsafe { esp_idf_svc::sys::esp_efuse_mac_get_default(mac.as_mut_ptr()) };
+    if result != esp_idf_svc::sys::ESP_OK {
+        bail!("read device MAC for provisioning SSID failed: {result}");
+    }
+    Ok(format!("GlanceDeck-{:02X}{:02X}", mac[4], mac[5]))
 }
 
 fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer<'static>> {
@@ -203,7 +215,7 @@ fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer
         }
         let mut payload = vec![0; length];
         request.read_exact(&mut payload)?;
-        let config: Portal_config = match serde_json::from_slice::<Portal_config>(&payload) {
+        let config: PortalConfig = match serde_json::from_slice::<PortalConfig>(&payload) {
             Ok(config)
                 if !config.ssid.is_empty()
                     && config.ssid.len() <= 32
@@ -242,7 +254,7 @@ fn start_portal_server(store: Arc<Mutex<EspDefaultNvs>>) -> Result<EspHttpServer
 }
 
 #[derive(serde::Deserialize)]
-struct Portal_config {
+struct PortalConfig {
     ssid: String,
     password: String,
     control_plane_url: String,

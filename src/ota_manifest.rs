@@ -5,7 +5,7 @@ use crate::display::hex_lower;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Ota_manifest {
+pub struct OtaManifest {
     pub board_model: String,
     pub version: String,
     pub image_url: String,
@@ -13,7 +13,7 @@ pub struct Ota_manifest {
     pub signature: String,
 }
 
-impl Ota_manifest {
+impl OtaManifest {
     pub fn validate(&self, expected_board: &str, expected_hash: &str) -> Result<(), &'static str> {
         if self.board_model != expected_board || self.version.is_empty() || self.version.len() > 64
         {
@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn validates_manifest_identity_and_image_hash() {
         let image = b"firmware";
-        let manifest = Ota_manifest {
+        let manifest = OtaManifest {
             board_model: "ESP32-S3-RLCD-4.2".into(),
             version: "1.2.3".into(),
             image_url: "https://example.test/firmware.bin".into(),

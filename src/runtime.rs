@@ -1,7 +1,7 @@
-use crate::mqtt::{Command_status, DeviceState, Device_command, Device_command_action};
+use crate::mqtt::{CommandStatus, DeviceCommand, DeviceCommandAction, DeviceState};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Local_screen {
+pub enum LocalScreen {
     Release { page_id: String },
     Maintenance { phase: MaintenancePhase },
 }
@@ -30,17 +30,17 @@ pub enum FeedbackKind {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Device_runtime {
+pub struct DeviceRuntime {
     enabled_pages: Vec<String>,
     page_index: usize,
     last_release_page: String,
-    pub screen: Local_screen,
+    pub screen: LocalScreen,
     pub reprovisioning: ReprovisioningState,
     indicator_deadline_ms: Option<u64>,
     pub feedback: Option<FeedbackKind>,
 }
 
-impl Device_runtime {
+impl DeviceRuntime {
     pub fn new(enabled_pages: Vec<String>) -> Self {
         let first_page = enabled_pages
             .first()
@@ -50,7 +50,7 @@ impl Device_runtime {
             enabled_pages,
             page_index: 0,
             last_release_page: first_page.clone(),
-            screen: Local_screen::Release {
+            screen: LocalScreen::Release {
                 page_id: first_page,
             },
             reprovisioning: ReprovisioningState::Inactive,
@@ -60,7 +60,7 @@ impl Device_runtime {
     }
 
     pub fn short_key_press(&mut self) {
-        if matches!(self.screen, Local_screen::Maintenance { .. }) {
+        if matches!(self.screen, LocalScreen::Maintenance { .. }) {
             self.cancel_maintenance();
             return;
         }
@@ -68,7 +68,7 @@ impl Device_runtime {
             return;
         }
         self.page_index = (self.page_index + 1) % self.enabled_pages.len();
-        self.screen = Local_screen::Release {
+        self.screen = LocalScreen::Release {
             page_id: self.enabled_pages[self.page_index].clone(),
         };
         self.last_release_page = self.enabled_pages[self.page_index].clone();
@@ -77,22 +77,22 @@ impl Device_runtime {
 
     pub fn long_key_press(&mut self) {
         match self.screen {
-            Local_screen::Release { ref page_id } => {
+            LocalScreen::Release { ref page_id } => {
                 self.last_release_page = page_id.clone();
-                self.screen = Local_screen::Maintenance {
+                self.screen = LocalScreen::Maintenance {
                     phase: MaintenancePhase::Overview,
                 };
                 self.feedback = Some(FeedbackKind::MaintenanceEntered);
             }
-            Local_screen::Maintenance {
+            LocalScreen::Maintenance {
                 phase: MaintenancePhase::Overview,
             } => {
-                self.screen = Local_screen::Maintenance {
+                self.screen = LocalScreen::Maintenance {
                     phase: MaintenancePhase::ConfirmReprovisioning,
                 };
                 self.feedback = Some(FeedbackKind::ReprovisionConfirmation);
             }
-            Local_screen::Maintenance {
+            LocalScreen::Maintenance {
                 phase: MaintenancePhase::ConfirmReprovisioning,
             } => {
                 self.reprovisioning = ReprovisioningState::PortalStarting;
@@ -116,7 +116,7 @@ impl Device_runtime {
 
     pub fn cancel_maintenance(&mut self) {
         self.reprovisioning = ReprovisioningState::Inactive;
-        self.screen = Local_screen::Release {
+        self.screen = LocalScreen::Release {
             page_id: self.last_release_page.clone(),
         };
         self.feedback = Some(FeedbackKind::MaintenanceCancelled);
@@ -133,25 +133,25 @@ impl Device_runtime {
         (!self.enabled_pages.is_empty()).then_some((self.page_index, self.enabled_pages.len()))
     }
 
-    pub fn apply_command(&mut self, command: &Device_command) -> Result<(), &'static str> {
+    pub fn apply_command(&mut self, command: &DeviceCommand) -> Result<(), &'static str> {
         match command.action {
-            Device_command_action::Show_page => {
+            DeviceCommandAction::ShowPage => {
                 let page_id = command.payload.page_id.as_ref().ok_or("page_id_required")?;
                 self.page_index = self
                     .enabled_pages
                     .iter()
                     .position(|page| page == page_id)
                     .ok_or("page_not_enabled")?;
-                self.screen = Local_screen::Release {
+                self.screen = LocalScreen::Release {
                     page_id: page_id.clone(),
                 };
                 self.last_release_page = page_id.clone();
             }
-            Device_command_action::Next_page => self.short_key_press(),
-            Device_command_action::Enter_maintenance => self.long_key_press(),
-            Device_command_action::Previous_page
-            | Device_command_action::Set_rotation
-            | Device_command_action::Refresh_release => {}
+            DeviceCommandAction::NextPage => self.short_key_press(),
+            DeviceCommandAction::EnterMaintenance => self.long_key_press(),
+            DeviceCommandAction::PreviousPage
+            | DeviceCommandAction::SetRotation
+            | DeviceCommandAction::RefreshRelease => {}
         }
         Ok(())
     }
@@ -164,12 +164,12 @@ impl Device_runtime {
         result: Result<(), &'static str>,
     ) -> DeviceState {
         let page_id = match &self.screen {
-            Local_screen::Release { page_id } => page_id.clone(),
-            Local_screen::Maintenance { .. } => "system".to_owned(),
+            LocalScreen::Release { page_id } => page_id.clone(),
+            LocalScreen::Maintenance { .. } => "system".to_owned(),
         };
         let (command_status, error_message) = match result {
-            Ok(()) => (Some(Command_status::Confirmed), None),
-            Err(error) => (Some(Command_status::Failed), Some(error.to_owned())),
+            Ok(()) => (Some(CommandStatus::Confirmed), None),
+            Err(error) => (Some(CommandStatus::Failed), Some(error.to_owned())),
         };
         DeviceState {
             version: 1,
@@ -189,22 +189,22 @@ impl Device_runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mqtt::Command_payload;
+    use crate::mqtt::CommandPayload;
 
     #[test]
     fn key_press_cycles_pages_and_requires_three_long_presses_for_portal() {
-        let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "alerts".to_owned()]);
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned(), "alerts".to_owned()]);
         runtime.short_key_press();
         assert_eq!(
             runtime.screen,
-            Local_screen::Release {
+            LocalScreen::Release {
                 page_id: "alerts".to_owned()
             }
         );
         runtime.long_key_press();
         assert_eq!(
             runtime.screen,
-            Local_screen::Maintenance {
+            LocalScreen::Maintenance {
                 phase: MaintenancePhase::Overview
             }
         );
@@ -212,7 +212,7 @@ mod tests {
         runtime.long_key_press();
         assert_eq!(
             runtime.screen,
-            Local_screen::Maintenance {
+            LocalScreen::Maintenance {
                 phase: MaintenancePhase::ConfirmReprovisioning
             }
         );
@@ -226,14 +226,14 @@ mod tests {
 
     #[test]
     fn short_press_cancels_maintenance_and_restores_last_release() {
-        let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "home".to_owned()]);
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned(), "home".to_owned()]);
         runtime.short_key_press();
         runtime.long_key_press();
         runtime.long_key_press();
         runtime.short_key_press();
         assert_eq!(
             runtime.screen,
-            Local_screen::Release {
+            LocalScreen::Release {
                 page_id: "home".to_owned()
             }
         );
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn page_indicator_expires_after_two_seconds() {
-        let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "home".to_owned()]);
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned(), "home".to_owned()]);
         runtime.short_key_press();
         runtime.show_page_indicator_until(1_000);
         assert_eq!(runtime.page_indicator(), Some((1, 2)));
@@ -254,11 +254,11 @@ mod tests {
 
     #[test]
     fn applies_commands_and_reports_confirmed_or_failed_state() {
-        let mut runtime = Device_runtime::new(vec!["usage".to_owned(), "alerts".to_owned()]);
-        let show_alerts = Device_command {
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned(), "alerts".to_owned()]);
+        let show_alerts = DeviceCommand {
             command_id: "one".to_owned(),
-            action: Device_command_action::Show_page,
-            payload: Command_payload {
+            action: DeviceCommandAction::ShowPage,
+            payload: CommandPayload {
                 page_id: Some("alerts".to_owned()),
                 rotation_seconds: None,
             },
@@ -271,57 +271,57 @@ mod tests {
             Ok(()),
         );
         assert_eq!(state.page_id, "alerts");
-        assert_eq!(state.command_status, Some(Command_status::Confirmed));
-        let invalid = Device_command {
-            payload: Command_payload::default(),
+        assert_eq!(state.command_status, Some(CommandStatus::Confirmed));
+        let invalid = DeviceCommand {
+            payload: CommandPayload::default(),
             ..show_alerts
         };
         assert_eq!(runtime.apply_command(&invalid), Err("page_id_required"));
         let failed = runtime.state(-55, None, Some("two".to_owned()), Err("page_id_required"));
-        assert_eq!(failed.command_status, Some(Command_status::Failed));
+        assert_eq!(failed.command_status, Some(CommandStatus::Failed));
         assert_eq!(failed.error_message.as_deref(), Some("page_id_required"));
     }
 
     #[test]
     fn supports_next_and_maintenance_commands_and_rejects_missing_pages() {
-        let mut runtime = Device_runtime::new(vec!["usage".to_owned()]);
-        let next = Device_command {
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned()]);
+        let next = DeviceCommand {
             command_id: "next".to_owned(),
-            action: Device_command_action::Next_page,
-            payload: Command_payload::default(),
+            action: DeviceCommandAction::NextPage,
+            payload: CommandPayload::default(),
         };
         assert_eq!(runtime.apply_command(&next), Ok(()));
-        let maintenance = Device_command {
+        let maintenance = DeviceCommand {
             command_id: "maint".to_owned(),
-            action: Device_command_action::Enter_maintenance,
-            payload: Command_payload::default(),
+            action: DeviceCommandAction::EnterMaintenance,
+            payload: CommandPayload::default(),
         };
         assert_eq!(runtime.apply_command(&maintenance), Ok(()));
         assert_eq!(
             runtime.screen,
-            Local_screen::Maintenance {
+            LocalScreen::Maintenance {
                 phase: MaintenancePhase::Overview
             }
         );
-        let missing = Device_command {
+        let missing = DeviceCommand {
             command_id: "missing".to_owned(),
-            action: Device_command_action::Show_page,
-            payload: Command_payload {
+            action: DeviceCommandAction::ShowPage,
+            payload: CommandPayload {
                 page_id: Some("missing".to_owned()),
                 rotation_seconds: None,
             },
         };
         assert_eq!(runtime.apply_command(&missing), Err("page_not_enabled"));
         for action in [
-            Device_command_action::Previous_page,
-            Device_command_action::Set_rotation,
-            Device_command_action::Refresh_release,
+            DeviceCommandAction::PreviousPage,
+            DeviceCommandAction::SetRotation,
+            DeviceCommandAction::RefreshRelease,
         ] {
             assert_eq!(
-                runtime.apply_command(&Device_command {
+                runtime.apply_command(&DeviceCommand {
                     command_id: "ignored".to_owned(),
                     action,
-                    payload: Command_payload::default()
+                    payload: CommandPayload::default()
                 }),
                 Ok(())
             );

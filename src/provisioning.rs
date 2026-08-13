@@ -4,7 +4,7 @@ use crate::config::DeviceConfig;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Enrollment_claim {
+pub struct EnrollmentClaim {
     pub pairing_code: String,
     pub device_id: String,
     pub mqtt: crate::config::MqttConfig,
@@ -13,12 +13,12 @@ pub struct Enrollment_claim {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProvisioningState {
     Unprovisioned,
-    Wifi_configured,
-    Awaiting_enrollment,
+    WifiConfigured,
+    AwaitingEnrollment,
     Enrolled,
 }
 
-pub trait Provisioning_service {
+pub trait ProvisioningService {
     type Error;
 
     fn start_captive_portal(&mut self) -> Result<(), Self::Error>;
@@ -27,7 +27,7 @@ pub trait Provisioning_service {
     fn show_pairing_code(&mut self, pairing_code: &str) -> Result<(), Self::Error>;
 }
 
-impl Enrollment_claim {
+impl EnrollmentClaim {
     pub fn into_device_config(self, wifi: crate::config::WifiConfig) -> DeviceConfig {
         DeviceConfig {
             device_id: self.device_id,
@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn enrollment_claim_keeps_only_device_connection_data() {
-        let config = Enrollment_claim {
+        let config = EnrollmentClaim {
             pairing_code: "123456".to_owned(),
             device_id: "office-deck".to_owned(),
             mqtt: MqttConfig {

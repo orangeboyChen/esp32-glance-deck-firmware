@@ -1,9 +1,9 @@
 use sha2::{Digest, Sha256};
 
 use crate::{
-    mqtt::{Ota_command, Ota_phase, Ota_state},
-    ota::Ota_policy,
-    ota_manifest::Ota_manifest,
+    mqtt::{OtaCommand, OtaPhase, OtaState},
+    ota::OtaPolicy,
+    ota_manifest::OtaManifest,
 };
 
 pub const MAX_OTA_MANIFEST_BYTES: usize = 8 * 1024;
@@ -17,7 +17,7 @@ pub trait OtaTransport {
         &mut self,
         url: &str,
         max_bytes: usize,
-        on_chunk: &mut dyn FnMut(&[u8]) -> Result<(), Self::Error>,
+        on_chunk: &mut dyn FnMut(&[u8], usize, usize) -> Result<(), Self::Error>,
     ) -> Result<usize, Self::Error>;
 }
 
@@ -29,7 +29,7 @@ pub trait OtaImageWriter {
 }
 
 pub trait OtaReporter {
-    fn report(&mut self, state: Ota_state);
+    fn report(&mut self, state: OtaState);
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -56,8 +56,8 @@ pub struct OtaProcessor {
 impl OtaProcessor {
     pub fn run<T, W, R>(
         &self,
-        command: &Ota_command,
-        policy: &mut Ota_policy,
+        command: &OtaCommand,
+        policy: &mut OtaPolicy,
         transport: &mut T,
         writer: W,
         reporter: &mut R,
@@ -71,15 +71,16 @@ impl OtaProcessor {
         if !policy.can_start() {
             return Err(OtaRunError::PowerUnsafe);
         }
-        reporter.report(Ota_state {
+        reporter.report(OtaState {
             job_id: command.job_id.clone(),
-            phase: Ota_phase::Downloading,
+            phase: OtaPhase::Downloading,
             error_message: None,
+            progress_percent: Some(0),
         });
         let manifest_bytes = transport
             .fetch_manifest(&command.manifest_url, MAX_OTA_MANIFEST_BYTES)
             .map_err(OtaRunError::Transport)?;
-        let manifest: Ota_manifest =
+        let manifest: OtaManifest =
             serde_json::from_slice(&manifest_bytes).map_err(|_| OtaRunError::ManifestJson)?;
         manifest
             .validate(&self.board_model, &command.image_sha256)
@@ -88,12 +89,13 @@ impl OtaProcessor {
             return Err(OtaRunError::Manifest("ota_manifest_version_mismatch"));
         }
         policy
-            .transition(Ota_phase::Verifying)
+            .transition(OtaPhase::Verifying)
             .map_err(OtaRunError::Manifest)?;
-        reporter.report(Ota_state {
+        reporter.report(OtaState {
             job_id: command.job_id.clone(),
-            phase: Ota_phase::Verifying,
+            phase: OtaPhase::Verifying,
             error_message: None,
+            progress_percent: None,
         });
         manifest
             .verify_signature(&self.public_key)
@@ -104,27 +106,43 @@ impl OtaProcessor {
         let mut total = 0usize;
         let mut image_too_large = false;
         let mut writer_failed = false;
+        let mut reported_percent = 0_u8;
         let image_url = manifest.image_url.clone();
         transport
-            .stream_image(&image_url, MAX_OTA_IMAGE_BYTES, &mut |chunk| {
-                if chunk.is_empty() {
-                    return Ok(());
-                }
-                let Some(next_total) = total.checked_add(chunk.len()) else {
-                    image_too_large = true;
-                    return Ok(());
-                };
-                total = next_total;
-                if total > MAX_OTA_IMAGE_BYTES {
-                    image_too_large = true;
-                    return Ok(());
-                }
-                hasher.update(chunk);
-                if writer.write_chunk(chunk).is_err() {
-                    writer_failed = true;
-                }
-                Ok(())
-            })
+            .stream_image(
+                &image_url,
+                MAX_OTA_IMAGE_BYTES,
+                &mut |chunk, downloaded, image_bytes| {
+                    if chunk.is_empty() {
+                        return Ok(());
+                    }
+                    let Some(next_total) = total.checked_add(chunk.len()) else {
+                        image_too_large = true;
+                        return Ok(());
+                    };
+                    total = next_total;
+                    if total > MAX_OTA_IMAGE_BYTES {
+                        image_too_large = true;
+                        return Ok(());
+                    }
+                    hasher.update(chunk);
+                    if writer.write_chunk(chunk).is_err() {
+                        writer_failed = true;
+                    }
+                    let percent =
+                        ((downloaded.saturating_mul(100) / image_bytes.max(1)).min(100)) as u8;
+                    if percent >= reported_percent.saturating_add(10) || percent == 100 {
+                        reported_percent = percent;
+                        reporter.report(OtaState {
+                            job_id: command.job_id.clone(),
+                            phase: OtaPhase::Downloading,
+                            error_message: None,
+                            progress_percent: Some(percent),
+                        });
+                    }
+                    Ok(())
+                },
+            )
             .map_err(OtaRunError::Transport)?;
         if image_too_large {
             return Err(OtaRunError::ImageTooLarge);
@@ -140,12 +158,13 @@ impl OtaProcessor {
         }
         writer.finish().map_err(|_| OtaRunError::Writer)?;
         policy
-            .transition(Ota_phase::Rebooting)
+            .transition(OtaPhase::Rebooting)
             .map_err(OtaRunError::Manifest)?;
-        reporter.report(Ota_state {
+        reporter.report(OtaState {
             job_id: command.job_id.clone(),
-            phase: Ota_phase::Rebooting,
+            phase: OtaPhase::Rebooting,
             error_message: None,
+            progress_percent: None,
         });
         Ok(())
     }
@@ -174,13 +193,16 @@ mod tests {
             &mut self,
             _: &str,
             max: usize,
-            callback: &mut dyn FnMut(&[u8]) -> Result<(), Self::Error>,
+            callback: &mut dyn FnMut(&[u8], usize, usize) -> Result<(), Self::Error>,
         ) -> Result<usize, Self::Error> {
             if self.image.len() > max {
                 return Err("image_large");
             }
+            let image_bytes = self.image.len();
+            let mut downloaded = 0;
             for chunk in self.image.chunks(3) {
-                callback(chunk)?;
+                downloaded += chunk.len();
+                callback(chunk, downloaded, image_bytes)?;
             }
             Ok(self.image.len())
         }
@@ -203,19 +225,19 @@ mod tests {
     }
     #[derive(Default)]
     struct Reporter {
-        phases: Vec<Ota_phase>,
+        phases: Vec<OtaPhase>,
     }
     impl OtaReporter for Reporter {
-        fn report(&mut self, state: Ota_state) {
+        fn report(&mut self, state: OtaState) {
             self.phases.push(state.phase);
         }
     }
 
-    fn fixture() -> (Ota_command, Transport, [u8; 32]) {
+    fn fixture() -> (OtaCommand, Transport, [u8; 32]) {
         let image = b"firmware-image".to_vec();
         let key = SigningKey::from_bytes(&[7; 32]);
         let hash = hex::encode(Sha256::digest(&image));
-        let mut manifest = Ota_manifest {
+        let mut manifest = OtaManifest {
             board_model: "ESP32-S3-RLCD-4.2".into(),
             version: "1.2.3".into(),
             image_url: "https://example.test/image.bin".into(),
@@ -226,7 +248,7 @@ mod tests {
             hex::encode(key.sign(manifest.canonical_payload().as_bytes()).to_bytes());
         let bytes = serde_json::to_vec(&manifest).unwrap();
         (
-            Ota_command {
+            OtaCommand {
                 job_id: "job".into(),
                 nonce: "nonce".into(),
                 version: "1.2.3".into(),
@@ -244,7 +266,7 @@ mod tests {
     #[test]
     fn runs_authenticated_stream_and_reports_phases() {
         let (command, mut transport, key) = fixture();
-        let mut policy = Ota_policy::new(true, None);
+        let mut policy = OtaPolicy::new(true, None);
         let mut reporter = Reporter::default();
         let result = OtaProcessor {
             board_model: "ESP32-S3-RLCD-4.2".into(),
@@ -258,20 +280,18 @@ mod tests {
             &mut reporter,
         );
         assert_eq!(result, Ok(()));
-        assert_eq!(
-            reporter.phases,
-            vec![
-                Ota_phase::Downloading,
-                Ota_phase::Verifying,
-                Ota_phase::Rebooting
-            ]
-        );
+        assert_eq!(reporter.phases.first(), Some(&OtaPhase::Downloading));
+        assert_eq!(reporter.phases.get(1), Some(&OtaPhase::Verifying));
+        assert_eq!(reporter.phases.last(), Some(&OtaPhase::Rebooting));
+        assert!(reporter.phases[2..reporter.phases.len() - 1]
+            .iter()
+            .all(|phase| phase == &OtaPhase::Downloading));
     }
 
     #[test]
     fn rejects_unsafe_power_before_network() {
         let (command, mut transport, key) = fixture();
-        let mut policy = Ota_policy::new(false, Some(29));
+        let mut policy = OtaPolicy::new(false, Some(29));
         let mut reporter = Reporter::default();
         assert_eq!(
             OtaProcessor {

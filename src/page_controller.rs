@@ -1,6 +1,6 @@
 use crate::{
     display::DisplayCache,
-    mqtt::{DeviceState, DeviceTopics, Mqtt_client},
+    mqtt::{DeviceState, DeviceTopics, MqttClient},
     pages::{PageNavigator, PageRenderer},
 };
 
@@ -26,7 +26,7 @@ impl PageController {
     where
         C: DisplayCache,
         R: PageRenderer,
-        M: Mqtt_client,
+        M: MqttClient,
     {
         let page = self.navigator.next_page().clone();
         let image = cache
@@ -148,7 +148,7 @@ mod tests {
         fail: bool,
     }
 
-    impl Mqtt_client for RecordingMqtt {
+    impl MqttClient for RecordingMqtt {
         type Error = &'static str;
 
         fn publish(

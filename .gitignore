@@ -4,5 +4,7 @@ build/
 sdkconfig
 sdkconfig.old
 target/
+release-target/
+release-target-flash/
 .embuild/
 *.pyc

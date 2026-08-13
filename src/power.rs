@@ -1,17 +1,17 @@
-use crate::mqtt::{Device_power_state, Power_source};
+use crate::mqtt::{DevicePowerState, PowerSource};
 
-pub trait Power_provider {
-    fn sample(&mut self) -> Device_power_state;
+pub trait PowerProvider {
+    fn sample(&mut self) -> DevicePowerState;
 }
 
-pub trait Power_measurement_reader {
+pub trait PowerMeasurementReader {
     type Error;
 
-    fn read_measurement(&mut self) -> Result<Power_measurement, Self::Error>;
+    fn read_measurement(&mut self) -> Result<PowerMeasurement, Self::Error>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Power_measurement {
+pub struct PowerMeasurement {
     pub vbus_present: bool,
     pub battery_charging: bool,
     pub battery_supplying: bool,
@@ -19,14 +19,14 @@ pub struct Power_measurement {
     pub battery_mv: Option<u16>,
 }
 
-pub fn classify_measurement(measurement: Power_measurement) -> Device_power_state {
+pub fn classify_measurement(measurement: PowerMeasurement) -> DevicePowerState {
     let source = match (measurement.vbus_present, measurement.battery_supplying) {
-        (true, true) => Power_source::Usb_and_battery,
-        (true, false) => Power_source::Usb,
-        (false, _) => Power_source::Battery,
+        (true, true) => PowerSource::UsbAndBattery,
+        (true, false) => PowerSource::Usb,
+        (false, _) => PowerSource::Battery,
     };
 
-    Device_power_state {
+    DevicePowerState {
         source,
         charging: measurement
             .vbus_present
@@ -36,12 +36,12 @@ pub fn classify_measurement(measurement: Power_measurement) -> Device_power_stat
     }
 }
 
-pub struct Unavailable_power_provider;
+pub struct UnavailablePowerProvider;
 
-impl Power_provider for Unavailable_power_provider {
-    fn sample(&mut self) -> Device_power_state {
-        Device_power_state {
-            source: Power_source::Unavailable,
+impl PowerProvider for UnavailablePowerProvider {
+    fn sample(&mut self) -> DevicePowerState {
+        DevicePowerState {
+            source: PowerSource::Unavailable,
             charging: None,
             battery_percent: None,
             battery_mv: None,
@@ -49,26 +49,26 @@ impl Power_provider for Unavailable_power_provider {
     }
 }
 
-pub struct Measured_power_provider<R> {
+pub struct MeasuredPowerProvider<R> {
     reader: R,
 }
 
-impl<R> Measured_power_provider<R> {
+impl<R> MeasuredPowerProvider<R> {
     pub fn new(reader: R) -> Self {
         Self { reader }
     }
 }
 
-impl<R> Power_provider for Measured_power_provider<R>
+impl<R> PowerProvider for MeasuredPowerProvider<R>
 where
-    R: Power_measurement_reader,
+    R: PowerMeasurementReader,
 {
-    fn sample(&mut self) -> Device_power_state {
+    fn sample(&mut self) -> DevicePowerState {
         self.reader
             .read_measurement()
             .map(classify_measurement)
-            .unwrap_or(Device_power_state {
-                source: Power_source::Unavailable,
+            .unwrap_or(DevicePowerState {
+                source: PowerSource::Unavailable,
                 charging: None,
                 battery_percent: None,
                 battery_mv: None,
@@ -91,15 +91,15 @@ mod tests {
     #[test]
     fn usb_powers_load_while_cell_charges() {
         assert_eq!(
-            classify_measurement(Power_measurement {
+            classify_measurement(PowerMeasurement {
                 vbus_present: true,
                 battery_charging: true,
                 battery_supplying: false,
                 battery_percent: Some(72),
                 battery_mv: Some(3_940),
             }),
-            Device_power_state {
-                source: Power_source::Usb,
+            DevicePowerState {
+                source: PowerSource::Usb,
                 charging: Some(true),
                 battery_percent: Some(72),
                 battery_mv: Some(3_940),
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn battery_supplement_is_reported_only_when_measured() {
         assert_eq!(
-            classify_measurement(Power_measurement {
+            classify_measurement(PowerMeasurement {
                 vbus_present: true,
                 battery_charging: false,
                 battery_supplying: true,
@@ -118,30 +118,30 @@ mod tests {
                 battery_mv: Some(3_650),
             })
             .source,
-            Power_source::Usb_and_battery
+            PowerSource::UsbAndBattery
         );
     }
 
     #[test]
     fn absent_vbus_uses_battery_without_claiming_charging() {
-        let state = classify_measurement(Power_measurement {
+        let state = classify_measurement(PowerMeasurement {
             vbus_present: false,
             battery_charging: false,
             battery_supplying: true,
             battery_percent: Some(55),
             battery_mv: Some(3_820),
         });
-        assert_eq!(state.source, Power_source::Battery);
+        assert_eq!(state.source, PowerSource::Battery);
         assert_eq!(state.charging, None);
     }
 
     #[test]
     fn unavailable_carrier_never_fabricates_power_measurements() {
-        let mut provider = Unavailable_power_provider;
+        let mut provider = UnavailablePowerProvider;
         assert_eq!(
             provider.sample(),
-            Device_power_state {
-                source: Power_source::Unavailable,
+            DevicePowerState {
+                source: PowerSource::Unavailable,
                 charging: None,
                 battery_percent: None,
                 battery_mv: None,
@@ -149,20 +149,20 @@ mod tests {
         );
     }
 
-    struct Test_reader(Result<Power_measurement, ()>);
+    struct TestReader(Result<PowerMeasurement, ()>);
 
-    impl Power_measurement_reader for Test_reader {
+    impl PowerMeasurementReader for TestReader {
         type Error = ();
 
-        fn read_measurement(&mut self) -> Result<Power_measurement, Self::Error> {
+        fn read_measurement(&mut self) -> Result<PowerMeasurement, Self::Error> {
             self.0.clone()
         }
     }
 
     #[test]
     fn measured_provider_fails_closed_and_converts_gauge_values() {
-        let mut provider = Measured_power_provider::new(Test_reader(Err(())));
-        assert_eq!(provider.sample().source, Power_source::Unavailable);
+        let mut provider = MeasuredPowerProvider::new(TestReader(Err(())));
+        assert_eq!(provider.sample().source, PowerSource::Unavailable);
         assert_eq!(max17048_voltage_mv(0xCCCD), 4_096);
         assert_eq!(max17048_percent(72 << 8), 72);
     }

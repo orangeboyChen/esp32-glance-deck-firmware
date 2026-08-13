@@ -36,3 +36,7 @@ embuild = { version = "0.32", features = ["espidf"] }
 name = "glance-deck-firmware"
 path = "src/main.rs"
 required-features = ["esp"]
+
+[[bin]]
+name = "render-local-screens"
+path = "src/bin/render-local-screens.rs"

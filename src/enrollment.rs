@@ -1,12 +1,12 @@
 use hex::ToHex;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Enrollment_session {
+pub struct EnrollmentSession {
     pub pairing_code: String,
     pub claim_secret: String,
 }
 
-impl Enrollment_session {
+impl EnrollmentSession {
     pub fn from_random(random: [u8; 32]) -> Self {
         let code_source = u32::from_le_bytes(random[0..4].try_into().expect("four bytes"));
         Self {
@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn derives_a_six_digit_code_and_256_bit_secret() {
-        let session = Enrollment_session::from_random([0xff; 32]);
+        let session = EnrollmentSession::from_random([0xff; 32]);
         assert_eq!(session.pairing_code.len(), 6);
         assert_eq!(session.claim_secret.len(), 64);
         assert_eq!(session.validate(), Ok(()));
@@ -47,7 +47,7 @@ mod tests {
 
     #[test]
     fn rejects_noncanonical_secret() {
-        let session = Enrollment_session {
+        let session = EnrollmentSession {
             pairing_code: "123456".to_owned(),
             claim_secret: "A".repeat(64),
         };

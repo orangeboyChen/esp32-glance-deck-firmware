@@ -1,8 +1,5 @@
 use anyhow::{bail, Context, Result};
-use embedded_svc::{
-    http::{client::Client as HttpClient, Method},
-    io::Read,
-};
+use embedded_svc::http::{client::Client as HttpClient, Method};
 use esp_idf_svc::sys::{self, esp_err_t, esp_ota_handle_t, esp_partition_t, ESP_OK};
 
 use crate::ota_runtime::{OtaImageWriter, OtaTransport};
@@ -137,7 +134,7 @@ impl OtaTransport for EspHttpsOtaTransport {
         &mut self,
         url: &str,
         max_bytes: usize,
-        on_chunk: &mut dyn FnMut(&[u8]) -> Result<(), Self::Error>,
+        on_chunk: &mut dyn FnMut(&[u8], usize, usize) -> Result<(), Self::Error>,
     ) -> Result<usize, Self::Error> {
         let connection = self.connection(url)?;
         let mut client = HttpClient::wrap(connection);
@@ -161,8 +158,8 @@ impl OtaTransport for EspHttpsOtaTransport {
             if count == 0 {
                 bail!("ota_image_truncated");
             }
-            on_chunk(&buffer[..count])?;
             total += count;
+            on_chunk(&buffer[..count], total, length)?;
         }
         if response.read(&mut [0_u8; 1])? != 0 {
             bail!("ota_image_oversized");

@@ -43,6 +43,7 @@ pub enum DisplayReleaseError {
     ImageTooLarge,
     EmptyPageId,
     MissingActivePage,
+    SystemPageNotLast,
     ContentHashMismatch,
 }
 
@@ -75,6 +76,14 @@ impl DisplayRelease {
         }
         for page in &self.pages {
             page.validate_metadata()?;
+        }
+        if self
+            .pages
+            .iter()
+            .position(|page| page.page_id == "system")
+            .is_some_and(|index| index + 1 != self.pages.len())
+        {
+            return Err(DisplayReleaseError::SystemPageNotLast);
         }
         Ok(())
     }
@@ -196,6 +205,21 @@ mod tests {
         assert_eq!(
             invalid.validate_metadata(),
             Err(DisplayReleaseError::InvalidImageDimensions)
+        );
+    }
+
+    #[test]
+    fn rejects_a_system_page_before_the_final_indicator_position() {
+        let image = &[0x55; DISPLAY_IMAGE_BYTES];
+        let release = DisplayRelease {
+            release_id: "release_20260811".to_owned(),
+            document_version: 1,
+            active_page_id: "usage".to_owned(),
+            pages: vec![page("system", image), page("usage", image)],
+        };
+        assert_eq!(
+            release.validate_metadata(),
+            Err(DisplayReleaseError::SystemPageNotLast)
         );
     }
 }

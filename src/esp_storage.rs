@@ -1,10 +1,5 @@
-use std::fs;
-
 use anyhow::{bail, Context, Result};
-use embedded_svc::{
-    http::{client::Client as HttpClient, Method},
-    io::Read,
-};
+use embedded_svc::http::{client::Client as HttpClient, Method};
 use esp_idf_svc::{
     fs::spiffs::Spiffs,
     http::client::{Configuration as HttpConfiguration, EspHttpConnection},

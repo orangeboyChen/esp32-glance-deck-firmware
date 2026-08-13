@@ -268,7 +268,9 @@ mod tests {
             active_page_id: "page-0".to_owned(),
             pages: first_release_pages.clone(),
         };
-        cache.commit_release(&first_release, &first_release_frames).unwrap();
+        cache
+            .commit_release(&first_release, &first_release_frames)
+            .unwrap();
 
         let mut second_release_pages = Vec::new();
         let mut second_release_frames = Vec::new();
@@ -285,9 +287,14 @@ mod tests {
             active_page_id: "page-10".to_owned(),
             pages: second_release_pages.clone(),
         };
-        cache.commit_release(&second_release, &second_release_frames).unwrap();
+        cache
+            .commit_release(&second_release, &second_release_frames)
+            .unwrap();
 
-        for page in first_release_pages.iter().chain(second_release_pages.iter()) {
+        for page in first_release_pages
+            .iter()
+            .chain(second_release_pages.iter())
+        {
             assert!(cache.contains_page(&page.image_sha256).unwrap());
         }
         assert_eq!(cache.index.page_hashes.len(), MAX_CACHED_PAGE_COUNT);
