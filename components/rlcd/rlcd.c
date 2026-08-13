@@ -31,7 +31,7 @@ static esp_err_t command_data(uint8_t value, const uint8_t *values, size_t lengt
 }
 
 esp_err_t glance_deck_rlcd_init(void) {
-    spi_bus_config_t bus = { .mosi_io_num = RLCD_MOSI_GPIO, .miso_io_num = -1, .sclk_io_num = RLCD_SCLK_GPIO, .quadwp_io_num = -1, .quadhd_io_num = -1, .max_transfer_sz = GLANCE_DECK_RLCD_FRAME_BYTES };
+    spi_bus_config_t bus = { .mosi_io_num = RLCD_MOSI_GPIO, .miso_io_num = -1, .sclk_io_num = RLCD_SCLK_GPIO, .quadwp_io_num = -1, .quadhd_io_num = -1, .max_transfer_sz = GLANCE_DECK_RLCD_WIDTH * GLANCE_DECK_RLCD_HEIGHT };
     ESP_RETURN_ON_ERROR(spi_bus_initialize(SPI3_HOST, &bus, SPI_DMA_CH_AUTO), "rlcd", "SPI init");
     esp_lcd_panel_io_spi_config_t spi = {
         .cs_gpio_num = RLCD_CS_GPIO,
@@ -40,7 +40,7 @@ esp_err_t glance_deck_rlcd_init(void) {
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
         .spi_mode = 0,
-        .trans_queue_depth = 1,
+        .trans_queue_depth = 10,
     };
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI3_HOST, &spi, &io), "rlcd", "panel IO init");
     gpio_config_t outputs = { .pin_bit_mask = 1ULL << RLCD_RESET_GPIO, .mode = GPIO_MODE_OUTPUT, .pull_up_en = GPIO_PULLUP_ENABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE, .intr_type = GPIO_INTR_DISABLE };
