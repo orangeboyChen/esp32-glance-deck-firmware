@@ -27,8 +27,8 @@ pub fn maintenance_frame(screen: MaintenanceScreen<'_>) -> Result<Vec<u8>, &'sta
             canvas.centered_text(78, "MAINTENANCE", 3);
             canvas.horizontal_line(28, 118, 344);
             canvas.vertical_line(200, 136, 72);
-            canvas.draw_key_gesture(110, 140, false);
-            canvas.draw_key_gesture(250, 140, true);
+            draw_icon(&mut canvas, Icon::ShortPress, 112, 140);
+            draw_icon(&mut canvas, Icon::LongPress, 256, 140);
             canvas.centered_text_at(128, 178, "CHECK UPDATE", 1);
             canvas.centered_text_at(272, 178, "WIFI SETUP", 1);
             canvas.centered_text_at(128, 208, "SHORT", 1);
@@ -38,7 +38,7 @@ pub fn maintenance_frame(screen: MaintenanceScreen<'_>) -> Result<Vec<u8>, &'sta
             canvas.header("WIFI SETUP", Some("CONFIRM ACCESS POINT"));
             draw_icon(&mut canvas, Icon::Wifi, 340, 26);
             canvas.horizontal_line(28, 96, 344);
-            canvas.draw_key_gesture(184, 122, true);
+            draw_icon(&mut canvas, Icon::LongPress, 184, 122);
             canvas.centered_text(166, "HOLD TO START", 2);
             canvas.centered_text(214, "SHORT PRESS CANCELS", 1);
         }
@@ -51,30 +51,30 @@ pub fn maintenance_frame(screen: MaintenanceScreen<'_>) -> Result<Vec<u8>, &'sta
         }
         MaintenanceScreen::CheckingUpdate => {
             canvas.header("SYSTEM UPDATE", Some("CHECKING FOR RELEASE"));
-            draw_icon(&mut canvas, Icon::Check, 340, 26);
+            draw_icon(&mut canvas, Icon::Update, 340, 26);
             canvas.horizontal_line(28, 96, 344);
             draw_icon(&mut canvas, Icon::Checking, 184, 124);
             canvas.centered_text(180, "CHECKING", 2);
         }
         MaintenanceScreen::UpdateReady { version } => {
             canvas.header("SYSTEM UPDATE", Some("UPDATE READY"));
-            draw_icon(&mut canvas, Icon::Download, 340, 26);
+            draw_icon(&mut canvas, Icon::Update, 340, 26);
             canvas.horizontal_line(28, 96, 344);
             draw_icon(&mut canvas, Icon::Download, 184, 116);
             canvas.centered_text(164, &format!("VERSION {version}"), 1);
-            canvas.draw_centered_key_gesture(200, 190, true);
+            draw_icon(&mut canvas, Icon::LongPress, 184, 190);
             canvas.centered_text(220, "HOLD TO APPLY", 1);
         }
         MaintenanceScreen::UpToDate => {
             canvas.header("SYSTEM UPDATE", Some("CHECK COMPLETE"));
-            draw_icon(&mut canvas, Icon::Check, 340, 26);
+            draw_icon(&mut canvas, Icon::Update, 340, 26);
             canvas.horizontal_line(28, 96, 344);
             draw_icon(&mut canvas, Icon::CheckMark, 184, 124);
             canvas.centered_text(180, "UP TO DATE", 2);
         }
         MaintenanceScreen::UpdateCheckFailed { reason } => {
             canvas.header("SYSTEM UPDATE", Some("CHECK FAILED"));
-            draw_icon(&mut canvas, Icon::Error, 340, 26);
+            draw_icon(&mut canvas, Icon::Update, 340, 26);
             canvas.horizontal_line(28, 96, 344);
             draw_icon(&mut canvas, Icon::Failed, 184, 124);
             canvas.centered_text(182, &bounded_text(reason), 1);

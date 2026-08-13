@@ -90,4 +90,24 @@ mod tests {
         assert!(page_indicator_frame(&frame, 3, 3).is_none());
         assert!(page_indicator_frame(&frame, 0, 11).is_none());
     }
+
+    #[test]
+    fn changes_only_the_documented_dot_region_of_the_source_frame() {
+        let frame = (0..DISPLAY_IMAGE_BYTES)
+            .map(|offset| (offset % u8::MAX as usize) as u8)
+            .collect::<Vec<_>>();
+        let overlay = page_indicator_frame(&frame, 1, 3).unwrap();
+
+        for pixel in 0..DISPLAY_WIDTH * DISPLAY_HEIGHT {
+            let x = pixel % DISPLAY_WIDTH;
+            let y = pixel / DISPLAY_WIDTH;
+            let in_dot_region = (182..=218).contains(&x) && (274..=282).contains(&y);
+            if !in_dot_region {
+                assert_eq!(
+                    overlay[pixel / 8] & (0x80 >> (pixel % 8)),
+                    frame[pixel / 8] & (0x80 >> (pixel % 8))
+                );
+            }
+        }
+    }
 }

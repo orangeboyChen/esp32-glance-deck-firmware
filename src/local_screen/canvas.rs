@@ -156,40 +156,6 @@ impl Canvas {
         }
     }
 
-    pub fn draw_key_gesture(&mut self, left: usize, top: usize, held: bool) {
-        self.stroke_circle(left as i32 + 10, top as i32 + 10, 9);
-        if held {
-            self.fill_circle(left as i32 + 10, top as i32 + 10, 3);
-            self.vertical_line(left + 22, top + 3, 14);
-            self.horizontal_line(left + 19, top + 3, 7);
-            self.horizontal_line(left + 19, top + 16, 7);
-        } else {
-            self.fill_circle(left as i32 + 10, top as i32 + 10, 2);
-            self.line(
-                left as i32 + 22,
-                top as i32 + 10,
-                left as i32 + 30,
-                top as i32 + 10,
-            );
-            self.line(
-                left as i32 + 27,
-                top as i32 + 7,
-                left as i32 + 30,
-                top as i32 + 10,
-            );
-            self.line(
-                left as i32 + 27,
-                top as i32 + 13,
-                left as i32 + 30,
-                top as i32 + 10,
-            );
-        }
-    }
-
-    pub fn draw_centered_key_gesture(&mut self, center_x: usize, top: usize, held: bool) {
-        self.draw_key_gesture(center_x.saturating_sub(13), top, held);
-    }
-
     pub fn draw_stage_flow(&mut self, center_x: usize, top: usize, active_stage: usize) {
         let centers = [center_x - 42, center_x, center_x + 42];
         for index in 0..2 {

@@ -21,6 +21,9 @@ const icons = {
   failed: lucide.CircleX,
   maintenance: lucide.Cog,
   pairing: lucide.Link,
+  'short-press': lucide.MousePointerClick,
+  'long-press': lucide.Timer,
+  update: lucide.RefreshCw,
   wifi: lucide.Wifi,
 }
 

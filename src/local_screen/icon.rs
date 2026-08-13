@@ -12,6 +12,9 @@ pub enum Icon {
     Failed,
     Maintenance,
     Pairing,
+    ShortPress,
+    LongPress,
+    Update,
     Wifi,
 }
 
@@ -25,6 +28,9 @@ pub fn draw_icon(canvas: &mut Canvas, icon: Icon, left: usize, top: usize) {
         Icon::Failed => include_bytes!("../../assets/local-icons/failed.mono1"),
         Icon::Maintenance => include_bytes!("../../assets/local-icons/maintenance.mono1"),
         Icon::Pairing => include_bytes!("../../assets/local-icons/pairing.mono1"),
+        Icon::ShortPress => include_bytes!("../../assets/local-icons/short-press.mono1"),
+        Icon::LongPress => include_bytes!("../../assets/local-icons/long-press.mono1"),
+        Icon::Update => include_bytes!("../../assets/local-icons/update.mono1"),
         Icon::Wifi => include_bytes!("../../assets/local-icons/wifi.mono1"),
     };
     canvas.blit_mono1(left, top, ICON_SIZE, ICON_SIZE, bitmap);
