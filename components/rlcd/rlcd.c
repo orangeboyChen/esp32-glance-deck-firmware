@@ -4,6 +4,7 @@
 #include <esp_check.h>
 #include <esp_lcd_panel_io.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <freertos/task.h>
 
 // GPIO pins from Waveshare's ESP-IDF ST7305 BSP.
@@ -13,6 +14,21 @@
 #define RLCD_CS_GPIO GPIO_NUM_40
 #define RLCD_RESET_GPIO GPIO_NUM_41
 static esp_lcd_panel_io_handle_t io;
+static SemaphoreHandle_t color_transfer_done;
+
+static bool color_transfer_complete(
+    esp_lcd_panel_io_handle_t panel_io,
+    esp_lcd_panel_io_event_data_t *event_data,
+    void *user_context
+) {
+    (void)panel_io;
+    (void)event_data;
+    (void)user_context;
+
+    BaseType_t higher_priority_task_woken = pdFALSE;
+    xSemaphoreGiveFromISR(color_transfer_done, &higher_priority_task_woken);
+    return higher_priority_task_woken == pdTRUE;
+}
 
 static esp_err_t command(uint8_t value) {
     return esp_lcd_panel_io_tx_param(io, value, NULL, 0);
@@ -41,8 +57,11 @@ esp_err_t glance_deck_rlcd_init(void) {
         .lcd_param_bits = 8,
         .spi_mode = 0,
         .trans_queue_depth = 10,
+        .on_color_trans_done = color_transfer_complete,
     };
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI3_HOST, &spi, &io), "rlcd", "panel IO init");
+    color_transfer_done = xSemaphoreCreateBinary();
+    ESP_RETURN_ON_FALSE(color_transfer_done, ESP_ERR_NO_MEM, "rlcd", "color transfer semaphore");
     gpio_config_t outputs = { .pin_bit_mask = 1ULL << RLCD_RESET_GPIO, .mode = GPIO_MODE_OUTPUT, .pull_up_en = GPIO_PULLUP_ENABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE, .intr_type = GPIO_INTR_DISABLE };
     ESP_RETURN_ON_ERROR(gpio_config(&outputs), "rlcd", "reset GPIO init");
     gpio_set_level(RLCD_RESET_GPIO, 1); vTaskDelay(pdMS_TO_TICKS(50)); gpio_set_level(RLCD_RESET_GPIO, 0); vTaskDelay(pdMS_TO_TICKS(20)); gpio_set_level(RLCD_RESET_GPIO, 1); vTaskDelay(pdMS_TO_TICKS(50));
@@ -84,11 +103,14 @@ esp_err_t glance_deck_rlcd_init(void) {
     ESP_RETURN_ON_ERROR(command(0x38), "rlcd", "idle off"); return command(0x29);
 }
 esp_err_t glance_deck_rlcd_flush(const uint8_t *frame, size_t length) {
-    if (!io || !frame || length != GLANCE_DECK_RLCD_FRAME_BYTES) return ESP_ERR_INVALID_ARG;
+    if (!io || !color_transfer_done || !frame || length != GLANCE_DECK_RLCD_FRAME_BYTES) return ESP_ERR_INVALID_ARG;
 
     ESP_RETURN_ON_ERROR(command_data(0x2A, (const uint8_t[]){0x12, 0x2A}, 2), "rlcd", "column");
     ESP_RETURN_ON_ERROR(command_data(0x2B, (const uint8_t[]){0x00, 0xC7}, 2), "rlcd", "row");
 
     ESP_RETURN_ON_ERROR(command(0x2C), "rlcd", "RAM write");
-    return esp_lcd_panel_io_tx_color(io, -1, frame, length);
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_color(io, -1, frame, length), "rlcd", "frame transfer");
+    return xSemaphoreTake(color_transfer_done, pdMS_TO_TICKS(1000)) == pdTRUE
+        ? ESP_OK
+        : ESP_ERR_TIMEOUT;
 }
