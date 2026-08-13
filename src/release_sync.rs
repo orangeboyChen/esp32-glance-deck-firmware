@@ -161,6 +161,15 @@ mod tests {
                     image_sha256: hex::encode(Sha256::digest(alerts_image)),
                     image_bytes: DISPLAY_IMAGE_BYTES,
                 },
+                DisplayPage {
+                    page_id: "system".to_owned(),
+                    image_format: DISPLAY_IMAGE_FORMAT.to_owned(),
+                    image_width: DISPLAY_WIDTH,
+                    image_height: DISPLAY_HEIGHT,
+                    image_url: "https://console.example/system".to_owned(),
+                    image_sha256: hex::encode(Sha256::digest(image)),
+                    image_bytes: DISPLAY_IMAGE_BYTES,
+                },
             ],
         }
     }

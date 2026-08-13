@@ -43,6 +43,7 @@ pub enum DisplayReleaseError {
     ImageTooLarge,
     EmptyPageId,
     MissingActivePage,
+    MissingSystemPage,
     SystemPageNotLast,
     ContentHashMismatch,
 }
@@ -77,12 +78,10 @@ impl DisplayRelease {
         for page in &self.pages {
             page.validate_metadata()?;
         }
-        if self
-            .pages
-            .iter()
-            .position(|page| page.page_id == "system")
-            .is_some_and(|index| index + 1 != self.pages.len())
-        {
+        let Some(system_index) = self.pages.iter().position(|page| page.page_id == "system") else {
+            return Err(DisplayReleaseError::MissingSystemPage);
+        };
+        if system_index + 1 != self.pages.len() {
             return Err(DisplayReleaseError::SystemPageNotLast);
         }
         Ok(())
@@ -191,7 +190,11 @@ mod tests {
             release_id: "release_20260811".to_owned(),
             document_version: 1,
             active_page_id: "usage".to_owned(),
-            pages: vec![page("usage", image), page("alert", image)],
+            pages: vec![
+                page("usage", image),
+                page("alert", image),
+                page("system", image),
+            ],
         };
         assert_eq!(release.validate_metadata(), Ok(()));
         assert_eq!(release.page("usage").unwrap().validate_image(image), Ok(()));
@@ -220,6 +223,21 @@ mod tests {
         assert_eq!(
             release.validate_metadata(),
             Err(DisplayReleaseError::SystemPageNotLast)
+        );
+    }
+
+    #[test]
+    fn requires_the_system_page_for_the_final_indicator_position() {
+        let image = &[0x55; DISPLAY_IMAGE_BYTES];
+        let release = DisplayRelease {
+            release_id: "release_20260811".to_owned(),
+            document_version: 1,
+            active_page_id: "usage".to_owned(),
+            pages: vec![page("usage", image)],
+        };
+        assert_eq!(
+            release.validate_metadata(),
+            Err(DisplayReleaseError::MissingSystemPage)
         );
     }
 }

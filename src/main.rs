@@ -48,7 +48,6 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-
     info!("ESP32 Glance Deck firmware starting");
     let mut renderer = RlcdRenderer::new()?;
     renderer.flush_frame(

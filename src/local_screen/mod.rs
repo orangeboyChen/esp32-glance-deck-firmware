@@ -1,9 +1,11 @@
 mod canvas;
 mod font;
+mod icon;
 mod maintenance;
 mod ota;
 mod provisioning;
 
+pub use icon::{draw_icon, Icon};
 pub use maintenance::{error_frame, maintenance_frame, MaintenanceScreen};
 pub use ota::ota_frame;
 pub use provisioning::{pairing_code_frame, wifi_setup_frame};
@@ -76,9 +78,15 @@ mod tests {
         let overlay = page_indicator_frame(&frame, 1, 3).unwrap();
         assert_ne!(overlay, frame);
         let inactive_center = 278 * DISPLAY_WIDTH + 186;
-        assert_eq!(overlay[inactive_center / 8] & (0x80 >> (inactive_center % 8)), 0);
+        assert_eq!(
+            overlay[inactive_center / 8] & (0x80 >> (inactive_center % 8)),
+            0
+        );
         let active_center = 278 * DISPLAY_WIDTH + 200;
-        assert_ne!(overlay[active_center / 8] & (0x80 >> (active_center % 8)), 0);
+        assert_ne!(
+            overlay[active_center / 8] & (0x80 >> (active_center % 8)),
+            0
+        );
         assert!(page_indicator_frame(&frame, 3, 3).is_none());
         assert!(page_indicator_frame(&frame, 0, 11).is_none());
     }

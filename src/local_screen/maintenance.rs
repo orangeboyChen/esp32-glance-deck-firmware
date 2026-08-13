@@ -1,4 +1,4 @@
-use super::canvas::Canvas;
+use super::{canvas::Canvas, draw_icon, Icon};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MaintenanceScreen<'a> {
@@ -17,41 +17,67 @@ pub fn maintenance_frame(screen: MaintenanceScreen<'_>) -> Result<Vec<u8>, &'sta
     match screen {
         MaintenanceScreen::Connecting => {
             canvas.header("CONNECTING", Some("WIFI AND CONTROL PLANE"));
-            canvas.centered_text(142, "PLEASE WAIT", 2);
+            draw_icon(&mut canvas, Icon::Wifi, 340, 26);
+            canvas.horizontal_line(28, 96, 344);
+            canvas.draw_stage_flow(200, 144, 0);
+            canvas.centered_text(180, "JOINING NETWORK", 1);
         }
         MaintenanceScreen::Overview => {
-            canvas.centered_text(72, "MAINTENANCE", 3);
-            canvas.centered_text(116, "SHORT: CHECK UPDATE", 1);
-            canvas.centered_text(154, "LONG: WIFI SETUP", 2);
+            draw_icon(&mut canvas, Icon::Maintenance, 184, 28);
+            canvas.centered_text(78, "MAINTENANCE", 3);
+            canvas.horizontal_line(28, 118, 344);
+            canvas.vertical_line(200, 136, 72);
+            canvas.draw_key_gesture(110, 140, false);
+            canvas.draw_key_gesture(250, 140, true);
+            canvas.centered_text_at(128, 178, "CHECK UPDATE", 1);
+            canvas.centered_text_at(272, 178, "WIFI SETUP", 1);
+            canvas.centered_text_at(128, 208, "SHORT", 1);
+            canvas.centered_text_at(272, 208, "HOLD", 1);
         }
         MaintenanceScreen::ConfirmWifiSetup => {
-            canvas.header("WIFI SETUP", None);
-            canvas.centered_text(128, "LONG AGAIN TO START", 2);
-            canvas.centered_text(172, "SHORT TO CANCEL", 1);
+            canvas.header("WIFI SETUP", Some("CONFIRM ACCESS POINT"));
+            draw_icon(&mut canvas, Icon::Wifi, 340, 26);
+            canvas.horizontal_line(28, 96, 344);
+            canvas.draw_key_gesture(184, 122, true);
+            canvas.centered_text(166, "HOLD TO START", 2);
+            canvas.centered_text(214, "SHORT PRESS CANCELS", 1);
         }
         MaintenanceScreen::StartingWifiSetup => {
             canvas.header("WIFI SETUP", Some("STARTING ACCESS POINT"));
-            canvas.centered_text(144, "RESTARTING", 2);
+            draw_icon(&mut canvas, Icon::Wifi, 340, 26);
+            canvas.horizontal_line(28, 96, 344);
+            canvas.draw_stage_flow(200, 144, 1);
+            canvas.centered_text(180, "RESTARTING", 2);
         }
         MaintenanceScreen::CheckingUpdate => {
-            canvas.centered_text(62, "SYSTEM UPDATE", 3);
-            canvas.centered_text(110, "CHECKING FOR RELEASE", 1);
-            canvas.centered_text(146, "CHECKING", 3);
+            canvas.header("SYSTEM UPDATE", Some("CHECKING FOR RELEASE"));
+            draw_icon(&mut canvas, Icon::Check, 340, 26);
+            canvas.horizontal_line(28, 96, 344);
+            draw_icon(&mut canvas, Icon::Checking, 184, 124);
+            canvas.centered_text(180, "CHECKING", 2);
         }
         MaintenanceScreen::UpdateReady { version } => {
-            canvas.centered_text(54, "SYSTEM UPDATE", 3);
-            canvas.centered_text(102, "UPDATE READY", 1);
-            canvas.centered_text(130, &format!("VERSION {version}"), 1);
-            canvas.centered_text(178, "LONG TO APPLY", 2);
-            canvas.centered_text(218, "SHORT TO CANCEL", 1);
+            canvas.header("SYSTEM UPDATE", Some("UPDATE READY"));
+            draw_icon(&mut canvas, Icon::Download, 340, 26);
+            canvas.horizontal_line(28, 96, 344);
+            draw_icon(&mut canvas, Icon::Download, 184, 116);
+            canvas.centered_text(164, &format!("VERSION {version}"), 1);
+            canvas.draw_centered_key_gesture(200, 190, true);
+            canvas.centered_text(220, "HOLD TO APPLY", 1);
         }
         MaintenanceScreen::UpToDate => {
-            canvas.centered_text(142, "UP TO DATE", 3);
+            canvas.header("SYSTEM UPDATE", Some("CHECK COMPLETE"));
+            draw_icon(&mut canvas, Icon::Check, 340, 26);
+            canvas.horizontal_line(28, 96, 344);
+            draw_icon(&mut canvas, Icon::CheckMark, 184, 124);
+            canvas.centered_text(180, "UP TO DATE", 2);
         }
         MaintenanceScreen::UpdateCheckFailed { reason } => {
-            canvas.centered_text(54, "SYSTEM UPDATE", 3);
-            canvas.centered_text(102, "CHECK FAILED", 1);
-            canvas.centered_text(170, &bounded_text(reason), 1);
+            canvas.header("SYSTEM UPDATE", Some("CHECK FAILED"));
+            draw_icon(&mut canvas, Icon::Error, 340, 26);
+            canvas.horizontal_line(28, 96, 344);
+            draw_icon(&mut canvas, Icon::Failed, 184, 124);
+            canvas.centered_text(182, &bounded_text(reason), 1);
         }
     }
     Ok(canvas.finish())
@@ -59,10 +85,12 @@ pub fn maintenance_frame(screen: MaintenanceScreen<'_>) -> Result<Vec<u8>, &'sta
 
 pub fn error_frame(failure: &str, action: &str, reason: Option<&str>) -> Vec<u8> {
     let mut canvas = Canvas::new();
-    canvas.centered_text(90, &bounded_text(failure), 3);
-    canvas.centered_text(142, &bounded_text(action), 2);
+    draw_icon(&mut canvas, Icon::Error, 184, 32);
+    canvas.centered_text(86, &bounded_text(failure), 3);
+    canvas.horizontal_line(28, 124, 344);
+    canvas.centered_text(150, &bounded_text(action), 2);
     if let Some(reason) = reason {
-        canvas.centered_text(184, &bounded_text(reason), 2);
+        canvas.centered_text(194, &bounded_text(reason), 1);
     }
     canvas.finish()
 }

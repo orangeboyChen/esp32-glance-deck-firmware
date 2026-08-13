@@ -301,4 +301,125 @@ fn promote_candidate(partition: &EspDefaultNvsPartition, candidate: &WifiConfig)
     Ok(())
 }
 
-const PORTAL_HTML: &str = r#"<!doctype html><html><head><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Glance Deck setup</title></head><body><h1>Glance Deck setup</h1><form id=f><label>Network <input name=ssid maxlength=32 required></label><br><label>Password <input name=password type=password maxlength=64></label><br><label>Console URL <input name=control_plane_url type=url placeholder=https://deck.example required></label><br><button>Connect</button></form><p id=s></p><script>f.onsubmit=async e=>{e.preventDefault();s.textContent='Saving…';let r=await fetch('/api/wifi',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(f))) });s.textContent=await r.text()}</script></body></html>"#;
+const PORTAL_HTML: &str = r###"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f7f2">
+  <title>Set up Glance Deck</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { align-items: center; background: #f4f7f2; color: #17322a; display: flex; margin: 0; min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+    main { margin: auto; max-width: 460px; width: 100%; }
+    .masthead { align-items: center; display: flex; gap: 12px; margin: 0 8px 20px; }
+    .mark { align-items: center; background: #1b6b55; border-radius: 12px; color: #fff; display: flex; font-size: 22px; font-weight: 800; height: 44px; justify-content: center; letter-spacing: -2px; width: 44px; }
+    .eyebrow { color: #4c625b; font-size: 12px; font-weight: 700; letter-spacing: .12em; margin: 0 0 3px; text-transform: uppercase; }
+    .name { font-size: 18px; font-weight: 750; letter-spacing: -.02em; margin: 0; }
+    section { background: #fff; border: 1px solid #d6dfd9; border-radius: 20px; box-shadow: 0 16px 36px rgba(20, 56, 43, .09); overflow: hidden; }
+    .intro { border-bottom: 1px solid #e4ebe6; padding: 28px 24px 22px; }
+    h1 { font-size: clamp(25px, 7vw, 32px); letter-spacing: -.04em; line-height: 1.08; margin: 0 0 10px; }
+    .intro p { color: #52655e; font-size: 16px; line-height: 1.5; margin: 0; }
+    form { padding: 24px; }
+    .field { margin-bottom: 18px; }
+    label { display: block; font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+    .hint { color: #60736b; font-size: 13px; line-height: 1.4; margin: -2px 0 9px; }
+    .input-wrap { position: relative; }
+    input { appearance: none; background: #f8faf8; border: 1px solid #bdcac2; border-radius: 11px; color: inherit; font: inherit; font-size: 16px; min-height: 48px; outline: none; padding: 0 13px; width: 100%; }
+    input:focus { background: #fff; border-color: #1b6b55; box-shadow: 0 0 0 3px rgba(27, 107, 85, .18); }
+    input::placeholder { color: #83928c; }
+    .password input { padding-right: 72px; }
+    .toggle { background: transparent; border: 0; border-radius: 8px; color: #1b6b55; cursor: pointer; font: inherit; font-size: 13px; font-weight: 750; min-height: 36px; padding: 0 10px; position: absolute; right: 6px; top: 6px; }
+    .toggle:focus-visible, button:focus-visible { outline: 3px solid #8dc9b0; outline-offset: 2px; }
+    .submit { background: #1b6b55; border: 0; border-radius: 12px; color: #fff; cursor: pointer; font: inherit; font-size: 16px; font-weight: 750; min-height: 52px; transition: background .15s ease, transform .15s ease; width: 100%; }
+    .submit:hover { background: #145440; }
+    .submit:active { transform: translateY(1px); }
+    .submit:disabled { background: #78988c; cursor: wait; }
+    .status { border-radius: 10px; display: none; font-size: 14px; line-height: 1.4; margin: 18px 0 0; padding: 12px 13px; }
+    .status.show { display: block; }
+    .status.success { background: #e5f5ec; color: #0e543b; }
+    .status.error { background: #fff0ed; color: #93321d; }
+    .footnote { color: #6c7d76; font-size: 12px; line-height: 1.45; margin: 16px 8px 0; text-align: center; }
+    @media (prefers-color-scheme: dark) { body { background: #102019; color: #edf4ef; } .masthead .eyebrow, .intro p, .hint, .footnote { color: #b6c7bd; } section { background: #172b22; border-color: #385449; box-shadow: none; } .intro { border-color: #385449; } input { background: #112119; border-color: #526b5f; color: #edf4ef; } input:focus { background: #172b22; } input::placeholder { color: #91a59a; } .status.success { background: #153d2b; color: #d7f5e2; } .status.error { background: #4c241d; color: #ffd9d0; } }
+    @media (max-width: 360px) { .intro, form { padding-left: 18px; padding-right: 18px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="masthead">
+      <div class="mark" aria-hidden="true">GD</div>
+      <div><p class="eyebrow">Device setup</p><p class="name">Glance Deck</p></div>
+    </header>
+    <section aria-labelledby="setup-title">
+      <div class="intro"><h1 id="setup-title">Connect your Deck</h1><p>Choose the Wi-Fi network your Deck should use, then enter the address of its Console.</p></div>
+      <form id="setup-form">
+        <div class="field"><label for="ssid">Wi-Fi network</label><input id="ssid" name="ssid" autocomplete="off" maxlength="32" required></div>
+        <div class="field"><label for="password">Wi-Fi password <span aria-hidden="true">(optional)</span></label><div class="input-wrap password"><input id="password" name="password" autocomplete="current-password" maxlength="64" type="password"><button class="toggle" id="password-toggle" type="button" aria-controls="password" aria-pressed="false">Show</button></div></div>
+        <div class="field"><label for="control-plane-url">Deck Console address</label><p class="hint">The HTTPS address where you manage this Deck.</p><input id="control-plane-url" name="control_plane_url" type="url" inputmode="url" autocapitalize="none" autocomplete="url" placeholder="https://deck.example.com" maxlength="256" required></div>
+        <button class="submit" id="submit" type="submit">Save and connect</button>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+    <p class="footnote">After saving, your Deck restarts and joins the selected Wi-Fi network.</p>
+  </main>
+  <script>
+    const form = document.getElementById('setup-form');
+    const password = document.getElementById('password');
+    const toggle = document.getElementById('password-toggle');
+    const submit = document.getElementById('submit');
+    const status = document.getElementById('status');
+    toggle.addEventListener('click', () => {
+      const showing = password.type === 'text';
+      password.type = showing ? 'password' : 'text';
+      toggle.textContent = showing ? 'Show' : 'Hide';
+      toggle.setAttribute('aria-pressed', String(!showing));
+    });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      submit.disabled = true;
+      submit.textContent = 'Saving…';
+      status.className = 'status show';
+      status.textContent = 'Saving your connection settings…';
+      try {
+        const response = await fetch('/api/wifi', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+        const message = await response.text();
+        if (!response.ok) throw new Error(message || 'Unable to save these settings. Check each field and try again.');
+        status.className = 'status show success';
+        status.textContent = 'Saved. Your Deck is restarting and connecting to Wi-Fi.';
+      } catch (error) {
+        status.className = 'status show error';
+        status.textContent = error instanceof Error ? error.message : 'Unable to save these settings. Try again.';
+        submit.disabled = false;
+        submit.textContent = 'Save and connect';
+      }
+    });
+  </script>
+</body>
+</html>"###;
+
+#[cfg(test)]
+mod tests {
+    use super::PORTAL_HTML;
+
+    #[test]
+    fn provisioning_portal_has_accessible_responsive_form_controls() {
+        for required_fragment in [
+            "viewport-fit=cover",
+            "name=\"ssid\"",
+            "name=\"password\"",
+            "name=\"control_plane_url\"",
+            "min-height: 48px",
+            "prefers-reduced-motion",
+            "aria-live=\"polite\"",
+            "fetch('/api/wifi'",
+        ] {
+            assert!(
+                PORTAL_HTML.contains(required_fragment),
+                "missing {required_fragment}"
+            );
+        }
+    }
+}
