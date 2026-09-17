@@ -43,6 +43,7 @@ jobs:
       HOME: /root
       CARGO_HOME: /root/.cargo
       RUSTUP_HOME: /root/.rustup
+      PATH: /root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       # A throwaway key generated for CI. It only proves the OTA verification path compiles and is
       # wired to a well-formed key; production images must supply the real public key.
       FIRMWARE_MANIFEST_PUBLIC_KEY_HEX: 3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29
@@ -62,6 +63,7 @@ jobs:
           HOME: /root
         run: |
           echo "${CARGO_HOME}/bin" >> "${GITHUB_PATH}"
+          export PATH="${CARGO_HOME}/bin:${PATH}"
           case "$(uname -m)" in
             x86_64) host=x86_64-unknown-linux-gnu ;;
             aarch64) host=aarch64-unknown-linux-gnu ;;
@@ -70,7 +72,11 @@ jobs:
           curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL \
             "https://static.rust-lang.org/rustup/dist/${host}/rustup-init" -o /tmp/rustup-init
           chmod +x /tmp/rustup-init
-          /tmp/rustup-init -y --profile minimal --default-toolchain none
+          # espup detects "Rust is installed" by asking rustup for a toolchain, so bootstrap with a
+          # concrete stable toolchain rather than `--default-toolchain none`.
+          /tmp/rustup-init -y --profile minimal --default-toolchain stable --no-modify-path
+          . "${CARGO_HOME}/env"
+          rustc --version
           curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL \
             "https://github.com/esp-rs/espup/releases/latest/download/espup-${host}" -o /usr/local/bin/espup
           chmod +x /usr/local/bin/espup
