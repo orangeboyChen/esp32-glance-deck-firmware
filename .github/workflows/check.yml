@@ -10,7 +10,6 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: --cfg espidf_timekeeping
 
 jobs:
   rust:
@@ -35,20 +34,36 @@ jobs:
     container:
       image: espressif/idf:v5.3.1
     env:
-      # A throwaway key pair generated for CI. It only proves the OTA verification path compiles
-      # and is wired to a well-formed key; production images must supply the real public key.
+      # Same toolchain build as .devcontainer/Dockerfile, which pins the version espup installs.
+      ESPUP_TOOLCHAIN_VERSION: 1.85.0.0
+      RUSTUP_TOOLCHAIN: esp
+      # A throwaway key generated for CI. It only proves the OTA verification path compiles and is
+      # wired to a well-formed key; production images must supply the real public key.
       FIRMWARE_MANIFEST_PUBLIC_KEY_HEX: 3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29
     steps:
       - name: Install build dependencies
-        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git pkg-config libudev-dev
 
       - uses: actions/checkout@v4
 
-      - name: Install Rust with the Xtensa target
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-          targets: xtensa-esp32s3-espidf
+      # The Xtensa target is not part of upstream stable Rust, so it comes from espup rather than
+      # rustup. ldproxy is the linker declared in .cargo/config.toml.
+      - name: Install the Xtensa toolchain
+        run: |
+          case "$(uname -m)" in
+            x86_64) host=x86_64-unknown-linux-gnu ;;
+            aarch64) host=aarch64-unknown-linux-gnu ;;
+            *) echo "unsupported architecture $(uname -m)" >&2; exit 1 ;;
+          esac
+          curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL \
+            "https://static.rust-lang.org/rustup/dist/${host}/rustup-init" -o /tmp/rustup-init
+          chmod +x /tmp/rustup-init
+          /tmp/rustup-init -y --profile minimal --default-toolchain none
+          curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL \
+            "https://github.com/esp-rs/espup/releases/latest/download/espup-${host}" -o /usr/local/bin/espup
+          chmod +x /usr/local/bin/espup
+          espup install --targets esp32s3 --toolchain-version "${ESPUP_TOOLCHAIN_VERSION}"
+          cargo install ldproxy --locked
 
       - name: Cache cargo artifacts
         uses: actions/cache@v4
@@ -57,19 +72,19 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: firmware-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: firmware-${{ runner.os }}-
+          key: firmware-${{ runner.os }}-${{ env.ESPUP_TOOLCHAIN_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: firmware-${{ runner.os }}-${{ env.ESPUP_TOOLCHAIN_VERSION }}-
 
       # `esp-idf-sys` needs the ESP-IDF environment exported by the container's entrypoint script.
       - name: Build the ESP32-S3 image
         run: |
           . ${IDF_PATH}/export.sh
-          cargo build --release --features esp --target xtensa-esp32s3-espidf
+          cargo build --release --features esp
 
       - name: Report image size
         run: |
           . ${IDF_PATH}/export.sh
-          cargo build --release --features esp --target xtensa-esp32s3-espidf --message-format=json \
+          cargo build --release --features esp --message-format=json \
             | python3 -c "
           import json, sys
           for line in sys.stdin:
@@ -79,8 +94,7 @@ jobs:
                   continue
               if message.get('reason') != 'compiler-artifact':
                   continue
-              target = message.get('target', {})
-              if 'glance-deck-firmware' not in target.get('name', ''):
+              if 'glance-deck-firmware' not in message.get('target', {}).get('name', ''):
                   continue
               for filename in message.get('filenames', []):
                   if filename.endswith(('.bin', '.elf')):
@@ -92,7 +106,7 @@ jobs:
         run: |
           . ${IDF_PATH}/export.sh
           if FIRMWARE_MANIFEST_PUBLIC_KEY_HEX=not-a-key \
-             cargo build --release --features esp --target xtensa-esp32s3-espidf 2>/dev/null; then
+             cargo build --release --features esp 2>/dev/null; then
             echo "::error::build succeeded with a malformed OTA public key"
             exit 1
           fi
