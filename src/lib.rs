@@ -32,6 +32,9 @@ pub mod runtime;
 pub mod st7305;
 
 pub const MAX_DISPLAY_RELEASE_BYTES: usize = 2 * 1024 * 1024;
+/// Upper bound on the pages a display document may declare. Each page carries a 400x300 frame, so
+/// an unbounded list in an MQTT payload would let a single message exhaust the device heap.
+pub const MAX_DISPLAY_PAGES: usize = 16;
 pub const SUPPORTED_DISPLAY_DOCUMENT_VERSION: u16 = 1;
 pub const DISPLAY_PHYSICAL_WIDTH: u16 = 400;
 pub const DISPLAY_PHYSICAL_HEIGHT: u16 = 300;

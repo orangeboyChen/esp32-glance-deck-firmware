@@ -3,7 +3,8 @@ use core::fmt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{MAX_DISPLAY_RELEASE_BYTES, SUPPORTED_DISPLAY_DOCUMENT_VERSION};
+use crate::mqtt::MAX_MQTT_PAYLOAD_BYTES;
+use crate::{MAX_DISPLAY_PAGES, MAX_DISPLAY_RELEASE_BYTES, SUPPORTED_DISPLAY_DOCUMENT_VERSION};
 
 pub const DISPLAY_IMAGE_FORMAT: &str = "mono1-msb";
 // Row-major 400 x 300 source frame. The renderer converts this to ST7305 RAM layout.
@@ -68,6 +69,7 @@ impl DisplayRelease {
             return Err(DisplayReleaseError::EmptyPageId);
         }
         if self.pages.is_empty()
+            || self.pages.len() > MAX_DISPLAY_PAGES
             || !self
                 .pages
                 .iter()
@@ -85,6 +87,21 @@ impl DisplayRelease {
             return Err(DisplayReleaseError::SystemPageNotLast);
         }
         Ok(())
+    }
+
+    /// Decode a display document from an untrusted MQTT payload.
+    ///
+    /// The size check matters: `serde_json` will happily allocate for whatever the payload
+    /// describes, so an oversized message would be buffered before validation gets a chance to
+    /// reject it. Commands already enforce the same limit via `DeviceCommand::from_payload`.
+    pub fn from_payload(payload: &[u8]) -> Result<Self, serde_json::Error> {
+        if payload.len() > MAX_MQTT_PAYLOAD_BYTES {
+            return Err(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "MQTT payload exceeds limit",
+            )));
+        }
+        serde_json::from_slice(payload)
     }
 
     pub fn page(&self, page_id: &str) -> Option<&DisplayPage> {
@@ -209,6 +226,37 @@ mod tests {
             invalid.validate_metadata(),
             Err(DisplayReleaseError::InvalidImageDimensions)
         );
+    }
+
+    #[test]
+    fn rejects_a_document_declaring_more_pages_than_the_device_can_hold() {
+        let image = &[0x55; DISPLAY_IMAGE_BYTES];
+        let mut pages: Vec<DisplayPage> = (0..MAX_DISPLAY_PAGES - 1)
+            .map(|index| page(&format!("page-{index}"), image))
+            .collect();
+        pages.push(page("system", image));
+        let release = DisplayRelease {
+            release_id: "release_20260811".to_owned(),
+            document_version: 1,
+            active_page_id: pages[0].page_id.clone(),
+            pages,
+        };
+        assert_eq!(release.validate_metadata(), Ok(()));
+
+        let mut oversized = release.clone();
+        oversized
+            .pages
+            .insert(oversized.pages.len() - 1, page("extra", image));
+        assert!(oversized.pages.len() > MAX_DISPLAY_PAGES);
+        assert_eq!(
+            oversized.validate_metadata(),
+            Err(DisplayReleaseError::MissingActivePage)
+        );
+    }
+
+    #[test]
+    fn rejects_oversized_payloads_before_deserializing_them() {
+        assert!(DisplayRelease::from_payload(&[b'x'; MAX_MQTT_PAYLOAD_BYTES + 1]).is_err());
     }
 
     #[test]
