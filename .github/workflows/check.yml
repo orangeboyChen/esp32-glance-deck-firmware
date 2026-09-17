@@ -47,8 +47,15 @@ jobs:
       # wired to a well-formed key; production images must supply the real public key.
       FIRMWARE_MANIFEST_PUBLIC_KEY_HEX: 3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29
     steps:
+      # esp-idf-sys drives CMake to build ESP-IDF and uses bindgen, which links libclang at runtime.
       - name: Install build dependencies
-        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git pkg-config libudev-dev
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git \
+            libclang-dev llvm-dev libssl-dev pkg-config libudev-dev \
+            python3 python3-pip python3-venv ninja-build
+          rm -rf /var/lib/apt/lists/*
 
       - uses: actions/checkout@v4
 
