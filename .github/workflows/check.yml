@@ -145,13 +145,15 @@ jobs:
           "
 
       # Proves build.rs rejects a malformed key instead of silently disabling OTA verification.
+      # A separate target directory is required: build.rs is cached after the step above, so
+      # reusing it would let the malformed key pass without the script ever running again.
       - name: Reject a malformed OTA public key
         env:
           RUSTUP_TOOLCHAIN: esp
         run: |
           . ${IDF_PATH}/export.sh
           if FIRMWARE_MANIFEST_PUBLIC_KEY_HEX=not-a-key \
-             cargo build --release --features esp 2>/dev/null; then
+             cargo build --release --features esp --target-dir /tmp/esp-bad-key 2>/dev/null; then
             echo "::error::build succeeded with a malformed OTA public key"
             exit 1
           fi
