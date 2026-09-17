@@ -252,4 +252,67 @@ mod tests {
             Some(&alerts)
         );
     }
+
+    /// Requesting a page the release does not declare must fail before any download, so a crafted
+    /// payload cannot make the device fetch an arbitrary hash.
+    #[test]
+    fn rejects_a_page_the_release_does_not_declare() {
+        let image = vec![0x55; DISPLAY_IMAGE_BYTES];
+        let mut cache = Cache::default();
+        let mut downloader = Downloader {
+            image: image.clone(),
+            downloads: 0,
+            fail: false,
+        };
+        let release = release(&image, &vec![0xaa; DISPLAY_IMAGE_BYTES]);
+        assert!(matches!(
+            synchronize_page(&mut cache, &mut downloader, &release, "not-declared"),
+            Err(ReleaseSyncError::InvalidMetadata(
+                DisplayReleaseError::MissingActivePage
+            ))
+        ));
+        assert_eq!(downloader.downloads, 0);
+    }
+
+    /// Metadata is validated before the cache is touched, so an invalid release is never committed
+    /// even when every frame is already present locally.
+    #[test]
+    fn rejects_invalid_metadata_before_committing_to_the_cache() {
+        let image = vec![0x55; DISPLAY_IMAGE_BYTES];
+        let mut cache = Cache::default();
+        let mut downloader = Downloader {
+            image: image.clone(),
+            downloads: 0,
+            fail: false,
+        };
+        let mut invalid = release(&image, &vec![0xaa; DISPLAY_IMAGE_BYTES]);
+        // Drop the required system page, which the page indicator depends on being last.
+        invalid.pages.retain(|page| page.page_id != "system");
+        assert!(matches!(
+            synchronize_release(&mut cache, &mut downloader, &invalid),
+            Err(ReleaseSyncError::InvalidMetadata(_))
+        ));
+        assert!(cache.current_release().unwrap().is_none());
+        assert_eq!(downloader.downloads, 0);
+    }
+
+    /// A downloaded frame that does not match the declared hash is rejected rather than cached, so
+    /// a substituted image can never be displayed.
+    #[test]
+    fn rejects_a_download_that_does_not_match_the_declared_hash() {
+        let image = vec![0x55; DISPLAY_IMAGE_BYTES];
+        let mut cache = Cache::default();
+        let mut downloader = Downloader {
+            // The declared hash is for `image`, but the transport returns different bytes.
+            image: vec![0x99; DISPLAY_IMAGE_BYTES],
+            downloads: 0,
+            fail: false,
+        };
+        let release = release(&image, &vec![0xaa; DISPLAY_IMAGE_BYTES]);
+        assert!(matches!(
+            synchronize_release(&mut cache, &mut downloader, &release),
+            Err(ReleaseSyncError::InvalidImage(_))
+        ));
+        assert!(cache.frames.is_empty());
+    }
 }

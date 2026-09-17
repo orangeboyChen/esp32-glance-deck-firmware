@@ -300,4 +300,77 @@ mod tests {
         assert_eq!(cache.index.page_hashes.len(), MAX_CACHED_PAGE_COUNT);
         fs::remove_dir_all(root).unwrap();
     }
+
+    /// A hash is used as a filename, so anything that is not 64 hex characters must be rejected
+    /// rather than reaching the filesystem.
+    #[test]
+    fn rejects_hashes_that_could_escape_the_cache_directory() {
+        let root = test_root();
+        let cache = FlashDisplayCache::open(&root).unwrap();
+        for hash in [
+            String::new(),
+            "..".to_owned(),
+            "../index.json".to_owned(),
+            "a".repeat(63),
+            "a".repeat(65),
+            "z".repeat(64),
+        ] {
+            assert!(
+                matches!(cache.page_path(&hash), Err(FlashCacheError::InvalidHash)),
+                "accepted {hash:?}"
+            );
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// The error text and source chain are what the caller logs, so both have to be usable.
+    #[test]
+    fn describes_every_error_variant_and_exposes_io_and_codec_sources() {
+        let io_error = io::Error::new(io::ErrorKind::Other, "disk gone");
+        let io: FlashCacheError = io_error.into();
+        assert!(matches!(io, FlashCacheError::Io(_)));
+        assert!(io.to_string().contains("disk gone"));
+        assert!(std::error::Error::source(&io).is_some());
+
+        let codec: FlashCacheError = serde_json::from_str::<serde_json::Value>("{")
+            .unwrap_err()
+            .into();
+        assert!(matches!(codec, FlashCacheError::Codec(_)));
+        assert!(codec.to_string().contains("flash cache metadata error"));
+        assert!(std::error::Error::source(&codec).is_some());
+
+        // Hash and frame rejections have no underlying cause.
+        for error in [FlashCacheError::InvalidHash, FlashCacheError::InvalidFrame] {
+            assert!(!error.to_string().is_empty());
+            assert!(std::error::Error::source(&error).is_none());
+        }
+    }
+
+    /// Reopening a cache directory reloads the committed release instead of starting empty.
+    #[test]
+    fn reloads_the_index_from_an_existing_directory() {
+        let root = test_root();
+        let frame = vec![0x77; DISPLAY_IMAGE_BYTES];
+        let page = page(&frame);
+        let release = DisplayRelease {
+            release_id: "release-1".to_owned(),
+            document_version: 1,
+            active_page_id: "usage".to_owned(),
+            pages: vec![page.clone()],
+        };
+        let mut cache = FlashDisplayCache::open(&root).unwrap();
+        cache
+            .commit_release(&release, &[(page.clone(), frame.clone())])
+            .unwrap();
+        assert!(cache.contains_page(&page.image_sha256).unwrap());
+        drop(cache);
+
+        // A second open reads the index written by the first.
+        let reopened = FlashDisplayCache::open(&root).unwrap();
+        assert!(reopened.contains_page(&page.image_sha256).unwrap());
+        assert!(reopened.contains_page(&"b".repeat(64)).is_ok());
+        assert!(!reopened.contains_page(&"b".repeat(64)).unwrap());
+        assert_eq!(reopened.previous_release().unwrap(), None);
+        fs::remove_dir_all(root).unwrap();
+    }
 }

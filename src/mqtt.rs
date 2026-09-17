@@ -297,4 +297,31 @@ mod tests {
         assert_eq!(command.validate(), Err("ota_hash_invalid"));
         assert!(DeviceCommand::from_payload(&vec![b'x'; MAX_MQTT_PAYLOAD_BYTES + 1]).is_err());
     }
+
+    /// The topics are the contract with the control plane: a typo here silently disconnects the
+    /// device from its own release, command, or OTA stream.
+    #[test]
+    fn builds_the_full_topic_set_under_the_device_root() {
+        let topics = DeviceTopics::new("deck-a");
+        assert_eq!(topics.release(), "glance_deck/deck-a/release");
+        assert_eq!(topics.command(), "glance_deck/deck-a/command");
+        assert_eq!(topics.ota(), "glance_deck/deck-a/ota");
+        assert_eq!(topics.state(), "glance_deck/deck-a/state");
+        assert_eq!(topics.availability(), "glance_deck/deck-a/availability");
+        assert_eq!(topics.ota_state(), "glance_deck/deck-a/ota/state");
+        assert_eq!(topics.ota_check(), "glance_deck/deck-a/ota/check");
+        assert_eq!(
+            topics.ota_check_state(),
+            "glance_deck/deck-a/ota/check/state"
+        );
+    }
+
+    /// Two devices must never share a topic namespace, or one would receive the other's commands.
+    #[test]
+    fn namespaces_topics_per_device() {
+        let first = DeviceTopics::new("deck-a");
+        let second = DeviceTopics::new("deck-b");
+        assert_ne!(first.state(), second.state());
+        assert_ne!(first.command(), second.command());
+    }
 }

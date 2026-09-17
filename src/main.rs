@@ -2,7 +2,10 @@ use anyhow::{Context, Result};
 use esp_idf_svc::log::EspLogger;
 use log::{info, warn};
 use std::{
-    sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
+    sync::{
+        mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
+        OnceLock,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -33,9 +36,23 @@ use glance_deck_firmware::{
     provisioning_esp::{load_active_wifi_config, restart_requested, start_network, NetworkRuntime},
     release_sync::{synchronize_page, synchronize_release},
     rlcd::RlcdRenderer,
+    runtime::MaintenanceSequence,
 };
 
+static BOOT_INSTANT: OnceLock<Instant> = OnceLock::new();
+
+/// Milliseconds since boot. The maintenance sequence compares against this rather than an
+/// `Instant` deadline so the shared, unit-testable counter in `runtime` stays free of std types.
+fn elapsed_ms() -> u64 {
+    BOOT_INSTANT
+        .get()
+        // `run()` is the only caller and `main` sets the instant before it, so this is unreachable
+        // in practice; falling back to zero just means the first sequence starts fresh.
+        .map_or(0, |started| started.elapsed().as_millis() as u64)
+}
+
 fn main() {
+    let _ = BOOT_INSTANT.set(Instant::now());
     esp_idf_svc::sys::link_patches();
     EspLogger::initialize_default();
 
@@ -80,7 +97,7 @@ fn run() -> Result<()> {
     let mut key = KeyButton::new()?;
     let mut power = UnavailablePowerProvider;
     let (ota_jobs, ota_states) = start_ota_worker()?;
-    let mut maintenance_long_presses = 0_u8;
+    let mut maintenance_sequence = MaintenanceSequence::new();
     let mut last_ota_nonce: Option<String> = None;
     let mut local_ota_candidate: Option<OtaCommand> = None;
     let mut pending_page_indicator: Option<PendingPageIndicator> = None;
@@ -122,8 +139,9 @@ fn run() -> Result<()> {
         }
         match key.poll() {
             Some(KeyEvent::ShortPress) => {
-                if maintenance_long_presses > 0 {
-                    if maintenance_long_presses == 1 {
+                match maintenance_sequence.register_short_press(elapsed_ms()) {
+                    // The press was absorbed by a pending maintenance step.
+                    Some(1) => {
                         if let Err(error) = mqtt.request_ota_check() {
                             warn!("local OTA check request failed: {error}");
                         } else if let Ok(frame) =
@@ -131,9 +149,10 @@ fn run() -> Result<()> {
                         {
                             let _ = renderer.flush_frame(&frame);
                         }
+                        continue;
                     }
-                    maintenance_long_presses = 0;
-                    continue;
+                    Some(_) => continue,
+                    None => {}
                 }
                 if let Some(release) = cache.current_release()? {
                     let page_id = adjacent_page_id(&release, current_page_id.as_deref(), false)?;
@@ -165,7 +184,8 @@ fn run() -> Result<()> {
                     }
                     continue;
                 }
-                maintenance_long_presses = maintenance_long_presses.saturating_add(1);
+                let maintenance_long_presses =
+                    maintenance_sequence.register_long_press(elapsed_ms());
                 info!("maintenance long press {maintenance_long_presses}/3");
                 let screen = match maintenance_long_presses {
                     1 => MaintenanceScreen::Overview,
@@ -177,7 +197,7 @@ fn run() -> Result<()> {
                         warn!("maintenance frame could not be rendered: {error:#}");
                     }
                 }
-                if maintenance_long_presses >= 3 {
+                if maintenance_long_presses >= MaintenanceSequence::REQUIRED_PRESSES {
                     request_wifi_provisioning(&partition)?;
                     info!("Wi-Fi reprovisioning requested; restarting");
                     unsafe { esp_idf_svc::sys::esp_restart() };
@@ -500,11 +520,21 @@ fn report_ota_state(mqtt: &mut EspDeviceMqtt, renderer: &mut RlcdRenderer, state
     }
 }
 
+/// The Ed25519 public key the control plane signs OTA manifests with. `build.rs` injects it from
+/// `FIRMWARE_MANIFEST_PUBLIC_KEY_HEX` and validates its shape, so a well-formed variable always
+/// resolves here and a malformed one fails the build instead of the first OTA job.
 fn firmware_public_key() -> Option<[u8; 32]> {
     let encoded = option_env!("FIRMWARE_MANIFEST_PUBLIC_KEY_HEX")?;
     let bytes = hex::decode(encoded).ok()?;
     bytes.try_into().ok()
 }
+
+#[cfg(all(feature = "esp", not(firmware_ota_key)))]
+compile_error!(
+    "FIRMWARE_MANIFEST_PUBLIC_KEY_HEX is not set, so every OTA manifest verification would fail \
+     at runtime with firmware_public_key_missing. Export the 64-character hex public key before \
+     building a device image."
+);
 
 fn enroll_device(
     partition: &esp_idf_svc::nvs::EspDefaultNvsPartition,

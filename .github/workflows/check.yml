@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   rust:
     name: Rust firmware checks
@@ -20,4 +23,155 @@ jobs:
           targets: x86_64-unknown-linux-gnu
       - run: cargo fmt --check
       - run: cargo metadata --no-deps --format-version 1
+      # Host-only unit tests cover the protocol, cache, validation, and input-handling logic. The
+      # `--lib` filter matters: it excludes src/main.rs and the `esp` modules, which need hardware
+      # and are compiled by the device-image job instead.
       - run: cargo test --lib --no-default-features --target x86_64-unknown-linux-gnu
+
+      # Coverage gate. Measured on the same host build as the tests above, so the number reflects
+      # what CI actually exercises. Device-only modules are not counted because they cannot run
+      # here; --fail-under-lines aborts the job when the measured line coverage drops below 90.
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Enforce 90% line coverage
+        run: |
+          cargo llvm-cov \
+            --lib \
+            --no-default-features \
+            --target x86_64-unknown-linux-gnu \
+            --summary-only \
+            --fail-under-lines 90
+
+  # Builds the actual device image. Without this job nothing compiles `src/main.rs` or any of the
+  # `esp` feature code, so a device-only regression (or a missing OTA signing key) passes CI and
+  # only shows up on hardware.
+  firmware:
+    name: Build device image
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.3.1
+    env:
+      # Same toolchain build as .devcontainer/Dockerfile, which pins the version espup installs.
+      ESPUP_TOOLCHAIN_VERSION: 1.85.0.0
+      # GitHub's container runs as root while $HOME points at /github/home. rustup-init refuses to
+      # run when $HOME disagrees with the euid home directory, so override it for the whole job and
+      # pin cargo/rustup under the same root.
+      HOME: /root
+      CARGO_HOME: /root/.cargo
+      RUSTUP_HOME: /root/.rustup
+      PATH: /root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      # A throwaway key generated for CI. It only proves the OTA verification path compiles and is
+      # wired to a well-formed key; production images must supply the real public key.
+      FIRMWARE_MANIFEST_PUBLIC_KEY_HEX: 3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29
+    steps:
+      # esp-idf-sys drives CMake to build ESP-IDF and uses bindgen, which links libclang at runtime.
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git \
+            libclang-dev llvm-dev libssl-dev pkg-config libudev-dev \
+            python3 python3-pip python3-venv ninja-build
+          rm -rf /var/lib/apt/lists/*
+
+      - uses: actions/checkout@v4
+
+      # The Xtensa target is not part of upstream stable Rust, so it comes from espup rather than
+      # rustup. ldproxy is the linker declared in .cargo/config.toml.
+      # GitHub's container runs as root while $HOME points at /github/home, and rustup-init refuses
+      # to run when $HOME disagrees with the euid home directory. rustup reads $HOME directly, so
+      # setting only CARGO_HOME/RUSTUP_HOME is not enough — HOME has to be overridden in the step.
+      - name: Install the Xtensa toolchain
+        env:
+          HOME: /root
+        run: |
+          echo "${CARGO_HOME}/bin" >> "${GITHUB_PATH}"
+          export PATH="${CARGO_HOME}/bin:${PATH}"
+          case "$(uname -m)" in
+            x86_64) host=x86_64-unknown-linux-gnu ;;
+            aarch64) host=aarch64-unknown-linux-gnu ;;
+            *) echo "unsupported architecture $(uname -m)" >&2; exit 1 ;;
+          esac
+          curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL \
+            "https://static.rust-lang.org/rustup/dist/${host}/rustup-init" -o /tmp/rustup-init
+          chmod +x /tmp/rustup-init
+          # espup detects "Rust is installed" by asking rustup for a toolchain, so bootstrap with a
+          # concrete stable toolchain rather than `--default-toolchain none`.
+          /tmp/rustup-init -y --profile minimal --default-toolchain stable --no-modify-path
+          . "${CARGO_HOME}/env"
+          rustc --version
+          curl --proto '=https' --tlsv1.2 --retry 5 --retry-all-errors -fsSL \
+            "https://github.com/esp-rs/espup/releases/latest/download/espup-${host}" -o /usr/local/bin/espup
+          chmod +x /usr/local/bin/espup
+          espup install --targets esp32s3 --toolchain-version "${ESPUP_TOOLCHAIN_VERSION}"
+          # espup writes export-esp.sh with the full activated environment, including the
+          # LIBCLANG_PATH that bindgen needs. Source it if present.
+          if [ -f "${HOME}/export-esp.sh" ]; then
+            . "${HOME}/export-esp.sh"
+          fi
+          # bindgen loads libclang at runtime and the system one rejects the 'xtensa' target
+          # triple, so locate the Xtensa-capable shared library espup installed.
+          clang_lib="$(find / -name 'libclang.so*' -not -path '*/proc/*' 2>/dev/null | head -n 1)"
+          if [ -z "${clang_lib}" ]; then
+            echo "::error::no libclang shared library found after espup install"
+            exit 1
+          fi
+          echo "LIBCLANG_PATH=$(dirname "${clang_lib}")" >> "${GITHUB_ENV}"
+          ls -l "${clang_lib}"
+          cargo install ldproxy --locked
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            /root/.cargo/registry
+            /root/.cargo/git
+            target
+          key: firmware-${{ runner.os }}-${{ env.ESPUP_TOOLCHAIN_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: firmware-${{ runner.os }}-${{ env.ESPUP_TOOLCHAIN_VERSION }}-
+
+      # `esp-idf-sys` needs the ESP-IDF environment exported by the container's entrypoint script.
+      # RUSTUP_TOOLCHAIN selects the `esp` toolchain espup installed above.
+      - name: Build the ESP32-S3 image
+        env:
+          RUSTUP_TOOLCHAIN: esp
+        run: |
+          . ${IDF_PATH}/export.sh
+          cargo build --release --features esp
+
+      - name: Report image size
+        env:
+          RUSTUP_TOOLCHAIN: esp
+        run: |
+          . ${IDF_PATH}/export.sh
+          cargo build --release --features esp --message-format=json \
+            | python3 -c "
+          import json, sys
+          for line in sys.stdin:
+              try:
+                  message = json.loads(line)
+              except ValueError:
+                  continue
+              if message.get('reason') != 'compiler-artifact':
+                  continue
+              if 'glance-deck-firmware' not in message.get('target', {}).get('name', ''):
+                  continue
+              for filename in message.get('filenames', []):
+                  if filename.endswith(('.bin', '.elf')):
+                      print(filename)
+          "
+
+      # Proves build.rs rejects a malformed key instead of silently disabling OTA verification.
+      # A separate target directory is required: build.rs is cached after the step above, so
+      # reusing it would let the malformed key pass without the script ever running again.
+      - name: Reject a malformed OTA public key
+        env:
+          RUSTUP_TOOLCHAIN: esp
+        run: |
+          . ${IDF_PATH}/export.sh
+          if FIRMWARE_MANIFEST_PUBLIC_KEY_HEX=not-a-key \
+             cargo build --release --features esp --target-dir /tmp/esp-bad-key 2>/dev/null; then
+            echo "::error::build succeeded with a malformed OTA public key"
+            exit 1
+          fi
+          echo "malformed key correctly rejected"

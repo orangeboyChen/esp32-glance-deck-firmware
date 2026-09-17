@@ -270,4 +270,60 @@ mod tests {
         ));
         assert!(mqtt.publications.is_empty());
     }
+
+    /// A cached frame whose length disagrees with the page metadata is treated as missing rather
+    /// than being handed to the renderer, which would index past the end of the buffer.
+    #[test]
+    fn rejects_a_cached_frame_whose_length_disagrees_with_the_metadata() {
+        let topics = DeviceTopics::new("office-deck");
+        let mut mqtt = RecordingMqtt::default();
+        let mut renderer = RecordingRenderer::default();
+        let cache = MemoryCache {
+            pages: HashMap::from([("a".repeat(64), vec![0; DISPLAY_IMAGE_BYTES - 1])]),
+            fail_read: false,
+        };
+        assert!(matches!(
+            controller().next_page(&cache, &mut renderer, Some(&mut mqtt), &topics, -48),
+            Err(PageControllerError::MissingCachedPage)
+        ));
+        assert!(!renderer.rendered_page.is_some_and(|page| page == "usage"));
+        assert!(mqtt.publications.is_empty());
+    }
+
+    /// A cache backend that fails is reported as a cache error, not silently swallowed as a
+    /// missing page.
+    #[test]
+    fn surfaces_a_cache_read_failure_as_a_cache_error() {
+        let topics = DeviceTopics::new("office-deck");
+        let mut mqtt = RecordingMqtt::default();
+        let mut renderer = RecordingRenderer::default();
+        let cache = MemoryCache {
+            pages: HashMap::from([("a".repeat(64), vec![0; DISPLAY_IMAGE_BYTES])]),
+            fail_read: true,
+        };
+        assert!(matches!(
+            controller().next_page(&cache, &mut renderer, Some(&mut mqtt), &topics, -48),
+            Err(PageControllerError::Cache("cache_read_failed"))
+        ));
+        assert!(mqtt.publications.is_empty());
+    }
+
+    /// Without MQTT the page still renders locally; connectivity is not a precondition for
+    /// responding to the button.
+    #[test]
+    fn renders_locally_without_publishing_when_mqtt_is_absent() {
+        let mut controller = controller();
+        let cache = cached_page();
+        let mut renderer = RecordingRenderer::default();
+        assert!(controller
+            .next_page::<_, _, RecordingMqtt>(
+                &cache,
+                &mut renderer,
+                None,
+                &DeviceTopics::new("office-deck"),
+                -48
+            )
+            .is_ok());
+        assert_eq!(renderer.rendered_page.as_deref(), Some("usage"));
+    }
 }
