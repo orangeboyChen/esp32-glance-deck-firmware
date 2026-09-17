@@ -1,5 +1,68 @@
 use crate::mqtt::{CommandStatus, DeviceCommand, DeviceCommandAction, DeviceState};
 
+/// How long a maintenance long-press sequence stays pending. Beyond this the presses are treated as
+/// unrelated, so one stray long press cannot hijack a later short press.
+pub const MAINTENANCE_SEQUENCE_TIMEOUT_MS: u64 = 3_000;
+
+/// Counts the long presses that walk the device into the Wi-Fi setup portal.
+///
+/// The counter is a *sequence*: three presses in a row mean "reprovision". Time matters, because a
+/// counter with no expiry stays pending forever once incremented, and the next short press is then
+/// silently reinterpreted as "confirm the pending step" instead of changing the page.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MaintenanceSequence {
+    presses: u8,
+    started_at_ms: Option<u64>,
+}
+
+impl MaintenanceSequence {
+    pub const REQUIRED_PRESSES: u8 = 3;
+
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn presses(&self) -> u8 {
+        self.presses
+    }
+
+    /// Returns the screen to show for the press that was just registered.
+    pub fn register_long_press(&mut self, now_ms: u64) -> u8 {
+        if self
+            .started_at_ms
+            .is_some_and(|started| now_ms.saturating_sub(started) > MAINTENANCE_SEQUENCE_TIMEOUT_MS)
+        {
+            self.presses = 0;
+        }
+        self.presses = self.presses.saturating_add(1);
+        self.started_at_ms = Some(now_ms);
+        self.presses
+    }
+
+    /// Consumes any pending sequence. `Some(presses)` means the short press was absorbed by the
+    /// sequence rather than cycling the page; `None` means the caller should change the page.
+    pub fn register_short_press(&mut self, now_ms: u64) -> Option<u8> {
+        if self
+            .started_at_ms
+            .is_some_and(|started| now_ms.saturating_sub(started) > MAINTENANCE_SEQUENCE_TIMEOUT_MS)
+        {
+            self.clear();
+            return None;
+        }
+        if self.presses == 0 {
+            return None;
+        }
+        let presses = self.presses;
+        self.clear();
+        Some(presses)
+    }
+
+    pub fn clear(&mut self) {
+        self.presses = 0;
+        self.started_at_ms = None;
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LocalScreen {
     Release { page_id: String },
@@ -326,5 +389,62 @@ mod tests {
                 Ok(())
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod maintenance_sequence_tests {
+    use super::*;
+
+    #[test]
+    fn three_presses_in_succession_request_the_portal() {
+        let mut sequence = MaintenanceSequence::new();
+        assert_eq!(sequence.register_long_press(0), 1);
+        assert_eq!(sequence.register_long_press(500), 2);
+        assert_eq!(sequence.register_long_press(900), 3);
+        assert!(sequence.presses() >= MaintenanceSequence::REQUIRED_PRESSES);
+    }
+
+    #[test]
+    fn a_stale_sequence_does_not_start_from_its_old_count() {
+        let mut sequence = MaintenanceSequence::new();
+        sequence.register_long_press(0);
+        // An hour passes. The earlier press is unrelated to this one.
+        assert_eq!(sequence.register_long_press(3_600_000), 1);
+    }
+
+    #[test]
+    fn a_short_press_after_the_timeout_changes_the_page() {
+        let mut sequence = MaintenanceSequence::new();
+        // One accidental long press, then the user walks away.
+        sequence.register_long_press(0);
+        // A short press much later must cycle the page, not confirm the stale step. This is the
+        // regression: without the timeout the press is absorbed and the page never changes.
+        assert_eq!(sequence.register_short_press(60_000), None);
+        assert_eq!(sequence.presses(), 0);
+    }
+
+    #[test]
+    fn a_short_press_inside_the_timeout_absorbs_the_sequence() {
+        let mut sequence = MaintenanceSequence::new();
+        sequence.register_long_press(0);
+        assert_eq!(sequence.register_short_press(500), Some(1));
+        // The sequence is spent, so the next short press cycles the page again.
+        assert_eq!(sequence.register_short_press(600), None);
+    }
+
+    #[test]
+    fn a_short_press_on_an_idle_device_cycles_the_page() {
+        let mut sequence = MaintenanceSequence::new();
+        assert_eq!(sequence.register_short_press(0), None);
+    }
+
+    #[test]
+    fn the_press_count_never_overflows() {
+        let mut sequence = MaintenanceSequence::new();
+        for step in 0..300_u64 {
+            sequence.register_long_press(step);
+        }
+        assert_eq!(sequence.presses(), u8::MAX);
     }
 }

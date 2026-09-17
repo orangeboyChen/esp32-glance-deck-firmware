@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: --cfg espidf_timekeeping
+
 jobs:
   rust:
     name: Rust firmware checks
@@ -21,3 +25,75 @@ jobs:
       - run: cargo fmt --check
       - run: cargo metadata --no-deps --format-version 1
       - run: cargo test --lib --no-default-features --target x86_64-unknown-linux-gnu
+
+  # Builds the actual device image. Without this job nothing compiles `src/main.rs` or any of the
+  # `esp` feature code, so a device-only regression (or a missing OTA signing key) passes CI and
+  # only shows up on hardware.
+  firmware:
+    name: Build device image
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.3.1
+    env:
+      # A throwaway key pair generated for CI. It only proves the OTA verification path compiles
+      # and is wired to a well-formed key; production images must supply the real public key.
+      FIRMWARE_MANIFEST_PUBLIC_KEY_HEX: 3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29
+    steps:
+      - name: Install build dependencies
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
+
+      - uses: actions/checkout@v4
+
+      - name: Install Rust with the Xtensa target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+          targets: xtensa-esp32s3-espidf
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: firmware-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: firmware-${{ runner.os }}-
+
+      # `esp-idf-sys` needs the ESP-IDF environment exported by the container's entrypoint script.
+      - name: Build the ESP32-S3 image
+        run: |
+          . ${IDF_PATH}/export.sh
+          cargo build --release --features esp --target xtensa-esp32s3-espidf
+
+      - name: Report image size
+        run: |
+          . ${IDF_PATH}/export.sh
+          cargo build --release --features esp --target xtensa-esp32s3-espidf --message-format=json \
+            | python3 -c "
+          import json, sys
+          for line in sys.stdin:
+              try:
+                  message = json.loads(line)
+              except ValueError:
+                  continue
+              if message.get('reason') != 'compiler-artifact':
+                  continue
+              target = message.get('target', {})
+              if 'glance-deck-firmware' not in target.get('name', ''):
+                  continue
+              for filename in message.get('filenames', []):
+                  if filename.endswith(('.bin', '.elf')):
+                      print(filename)
+          "
+
+      # Proves build.rs rejects a malformed key instead of silently disabling OTA verification.
+      - name: Reject a malformed OTA public key
+        run: |
+          . ${IDF_PATH}/export.sh
+          if FIRMWARE_MANIFEST_PUBLIC_KEY_HEX=not-a-key \
+             cargo build --release --features esp --target xtensa-esp32s3-espidf 2>/dev/null; then
+            echo "::error::build succeeded with a malformed OTA public key"
+            exit 1
+          fi
+          echo "malformed key correctly rejected"
