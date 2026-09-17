@@ -37,6 +37,11 @@ jobs:
       # Same toolchain build as .devcontainer/Dockerfile, which pins the version espup installs.
       ESPUP_TOOLCHAIN_VERSION: 1.85.0.0
       RUSTUP_TOOLCHAIN: esp
+      # GitHub's container runs as root while $HOME points at /github/home, and rustup aborts on that
+      # mismatch ("$HOME differs from euid-obtained home directory"). Pinning both to one directory
+      # makes the install independent of $HOME.
+      CARGO_HOME: /root/.cargo
+      RUSTUP_HOME: /root/.rustup
       # A throwaway key generated for CI. It only proves the OTA verification path compiles and is
       # wired to a well-formed key; production images must supply the real public key.
       FIRMWARE_MANIFEST_PUBLIC_KEY_HEX: 3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29
@@ -50,6 +55,7 @@ jobs:
       # rustup. ldproxy is the linker declared in .cargo/config.toml.
       - name: Install the Xtensa toolchain
         run: |
+          echo "${CARGO_HOME}/bin" >> "${GITHUB_PATH}"
           case "$(uname -m)" in
             x86_64) host=x86_64-unknown-linux-gnu ;;
             aarch64) host=aarch64-unknown-linux-gnu ;;
@@ -69,8 +75,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            /root/.cargo/registry
+            /root/.cargo/git
             target
           key: firmware-${{ runner.os }}-${{ env.ESPUP_TOOLCHAIN_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: firmware-${{ runner.os }}-${{ env.ESPUP_TOOLCHAIN_VERSION }}-
