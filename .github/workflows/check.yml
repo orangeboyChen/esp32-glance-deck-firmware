@@ -87,14 +87,20 @@ jobs:
             "https://github.com/esp-rs/espup/releases/latest/download/espup-${host}" -o /usr/local/bin/espup
           chmod +x /usr/local/bin/espup
           espup install --targets esp32s3 --toolchain-version "${ESPUP_TOOLCHAIN_VERSION}"
-          # esp-idf-sys generates bindings with bindgen, and the system libclang rejects the
-          # 'xtensa' target triple. Point bindgen at the Xtensa-capable clang espup installs.
-          esp_clang_dir="$(find "${RUSTUP_HOME}/toolchains/esp" -maxdepth 3 -type d -name 'xtensa-esp32-elf-clang' | head -n 1)"
-          if [ -z "${esp_clang_dir}" ]; then
-            echo "::error::could not locate the espup Xtensa clang under ${RUSTUP_HOME}/toolchains/esp"
+          # espup writes export-esp.sh with the full activated environment, including the
+          # LIBCLANG_PATH that bindgen needs. Source it if present.
+          if [ -f "${HOME}/export-esp.sh" ]; then
+            . "${HOME}/export-esp.sh"
+          fi
+          # bindgen loads libclang at runtime and the system one rejects the 'xtensa' target
+          # triple, so locate the Xtensa-capable shared library espup installed.
+          clang_lib="$(find / -name 'libclang.so*' -not -path '*/proc/*' 2>/dev/null | head -n 1)"
+          if [ -z "${clang_lib}" ]; then
+            echo "::error::no libclang shared library found after espup install"
             exit 1
           fi
-          echo "LIBCLANG_PATH=${esp_clang_dir}/lib" >> "${GITHUB_ENV}"
+          echo "LIBCLANG_PATH=$(dirname "${clang_lib}")" >> "${GITHUB_ENV}"
+          ls -l "${clang_lib}"
           cargo install ldproxy --locked
 
       - name: Cache cargo artifacts
