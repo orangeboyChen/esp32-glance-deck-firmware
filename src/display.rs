@@ -240,4 +240,113 @@ mod tests {
             Err(DisplayReleaseError::MissingSystemPage)
         );
     }
+
+    fn release(pages: Vec<DisplayPage>, active: &str) -> DisplayRelease {
+        DisplayRelease {
+            release_id: "release_20260811".to_owned(),
+            document_version: 1,
+            active_page_id: active.to_owned(),
+            pages,
+        }
+    }
+
+    /// Each guard below rejects a document the device would otherwise render or cache, so they are
+    /// the last line of defence against a malformed or hostile MQTT release payload.
+    #[test]
+    fn rejects_every_invalid_release_metadata_variant() {
+        let image = &[0x55; DISPLAY_IMAGE_BYTES];
+        let mut unsupported_version = release(vec![page("system", image)], "system");
+        unsupported_version.document_version = 2;
+        assert_eq!(
+            unsupported_version.validate_metadata(),
+            Err(DisplayReleaseError::UnsupportedDocumentVersion)
+        );
+
+        let mut bad_release_id = release(vec![page("system", image)], "system");
+        bad_release_id.release_id = "release/../../etc".to_owned();
+        assert_eq!(
+            bad_release_id.validate_metadata(),
+            Err(DisplayReleaseError::InvalidReleaseId)
+        );
+
+        let empty_active = release(vec![page("system", image)], "");
+        assert_eq!(
+            empty_active.validate_metadata(),
+            Err(DisplayReleaseError::EmptyPageId)
+        );
+
+        // The active page must be one of the declared pages, not just any string.
+        let missing_active = release(vec![page("system", image)], "usage");
+        assert_eq!(
+            missing_active.validate_metadata(),
+            Err(DisplayReleaseError::MissingActivePage)
+        );
+
+        let no_system = release(vec![page("usage", image)], "usage");
+        assert_eq!(
+            no_system.validate_metadata(),
+            Err(DisplayReleaseError::MissingSystemPage)
+        );
+    }
+
+    #[test]
+    fn rejects_every_invalid_page_metadata_variant() {
+        let image = &[0x55; DISPLAY_IMAGE_BYTES];
+
+        let mut bad_format = page("usage", image);
+        bad_format.image_format = "png".to_owned();
+        assert_eq!(
+            bad_format.validate_metadata(),
+            Err(DisplayReleaseError::UnsupportedImageFormat)
+        );
+
+        // A plain-HTTP image URL would put the frame download on an unauthenticated channel.
+        let mut insecure = page("usage", image);
+        insecure.image_url = "http://console.example/usage.bin".to_owned();
+        assert_eq!(
+            insecure.validate_metadata(),
+            Err(DisplayReleaseError::InsecureImageUrl)
+        );
+
+        let mut short_hash = page("usage", image);
+        short_hash.image_sha256 = "abc".to_owned();
+        assert_eq!(
+            short_hash.validate_metadata(),
+            Err(DisplayReleaseError::InvalidHash)
+        );
+
+        let mut non_hex_hash = page("usage", image);
+        non_hex_hash.image_sha256 = "z".repeat(64);
+        assert_eq!(
+            non_hex_hash.validate_metadata(),
+            Err(DisplayReleaseError::InvalidHash)
+        );
+
+        let mut oversized = page("usage", image);
+        oversized.image_bytes = DISPLAY_IMAGE_BYTES + 1;
+        assert_eq!(
+            oversized.validate_metadata(),
+            Err(DisplayReleaseError::ImageTooLarge)
+        );
+
+        let mut bad_id = page("usage", image);
+        bad_id.page_id = String::new();
+        assert_eq!(
+            bad_id.validate_metadata(),
+            Err(DisplayReleaseError::EmptyPageId)
+        );
+    }
+
+    /// A frame of the wrong length is rejected before hashing, so a truncated download can never
+    /// be committed to the cache.
+    #[test]
+    fn rejects_an_image_whose_length_disagrees_with_the_metadata() {
+        let image = &[0x55; DISPLAY_IMAGE_BYTES];
+        let valid = page("usage", image);
+        let truncated = &image[..DISPLAY_IMAGE_BYTES - 1];
+        assert_eq!(
+            valid.validate_image(truncated),
+            Err(DisplayReleaseError::ContentHashMismatch)
+        );
+    }
 }

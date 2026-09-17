@@ -63,4 +63,51 @@ mod tests {
 
         assert_eq!(gap_above, gap_below);
     }
+
+    /// Every non-downloading phase renders the stage flow instead of the progress bar, and the
+    /// frame must stay a complete display buffer in each case.
+    #[test]
+    fn renders_every_phase_as_a_complete_frame() {
+        for (phase, percent) in [
+            (OtaPhase::Verifying, None),
+            (OtaPhase::Rebooting, None),
+            (OtaPhase::Healthy, None),
+            (OtaPhase::RolledBack, None),
+            (OtaPhase::Failed, None),
+            (OtaPhase::Downloading, Some(0)),
+            (OtaPhase::Downloading, Some(100)),
+        ] {
+            let frame = ota_frame(&phase, percent);
+            assert_eq!(frame.len(), DISPLAY_IMAGE_BYTES, "{phase:?}");
+        }
+    }
+
+    /// A missing percentage is treated as zero rather than rendering a blank bar.
+    #[test]
+    fn defaults_a_missing_percentage_to_zero() {
+        assert_eq!(
+            ota_frame(&OtaPhase::Downloading, None),
+            ota_frame(&OtaPhase::Downloading, Some(0))
+        );
+    }
+
+    /// The display is 8-bit; clamping keeps a >100 value from wrapping the bar or the label.
+    #[test]
+    fn clamps_a_percentage_above_one_hundred() {
+        assert_eq!(
+            ota_frame(&OtaPhase::Downloading, Some(255)),
+            ota_frame(&OtaPhase::Downloading, Some(100))
+        );
+    }
+
+    /// Rebooting advances the stage flow, so it must not render the same frame as the other phases.
+    #[test]
+    fn distinguishes_rebooting_from_the_other_stages() {
+        let rebooting = ota_frame(&OtaPhase::Rebooting, None);
+        for phase in [OtaPhase::Verifying, OtaPhase::Healthy, OtaPhase::Failed] {
+            assert_ne!(rebooting, ota_frame(&phase, None), "{phase:?}");
+        }
+        // Rolled back and rebooting land on different stages despite both being terminal-ish.
+        assert_ne!(rebooting, ota_frame(&OtaPhase::RolledBack, None));
+    }
 }

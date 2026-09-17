@@ -447,4 +447,80 @@ mod maintenance_sequence_tests {
         }
         assert_eq!(sequence.presses(), u8::MAX);
     }
+
+    /// A device with no enabled pages must not panic on a button press.
+    #[test]
+    fn ignores_a_short_press_when_no_pages_are_enabled() {
+        let mut runtime = DeviceRuntime::new(Vec::new());
+        runtime.short_key_press();
+        assert_eq!(runtime.page_indicator(), None);
+        assert!(runtime.feedback.is_none());
+    }
+
+    /// The portal can only be marked active once the operator confirmed it, so a stray callback
+    /// cannot publish credentials the user never asked for.
+    #[test]
+    fn rejects_a_portal_that_was_never_confirmed() {
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned()]);
+        assert_eq!(
+            runtime.portal_started("ssid".to_owned(), "pass".to_owned()),
+            Err("reprovisioning_not_confirmed")
+        );
+        runtime.long_key_press();
+        runtime.long_key_press();
+        runtime.long_key_press();
+        assert_eq!(
+            runtime.portal_started("GlanceDeck-Setup".to_owned(), "secret".to_owned()),
+            Ok(())
+        );
+        assert_eq!(
+            runtime.reprovisioning,
+            ReprovisioningState::PortalActive {
+                ssid: "GlanceDeck-Setup".to_owned(),
+                password: "secret".to_owned()
+            }
+        );
+    }
+
+    /// Finishing reprovisioning returns to the release screen and drops the portal state.
+    #[test]
+    fn finish_reprovisioning_returns_to_the_release_page() {
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned()]);
+        runtime.long_key_press();
+        runtime.long_key_press();
+        runtime.long_key_press();
+        runtime
+            .portal_started("GlanceDeck-Setup".to_owned(), "secret".to_owned())
+            .unwrap();
+        runtime.finish_reprovisioning();
+        assert_eq!(runtime.reprovisioning, ReprovisioningState::Inactive);
+        assert_eq!(
+            runtime.screen,
+            LocalScreen::Release {
+                page_id: "usage".to_owned()
+            }
+        );
+    }
+
+    /// While maintenance is on screen the device still reports a page id the control plane
+    /// recognises, rather than an empty or maintenance-specific value.
+    #[test]
+    fn reports_the_system_page_while_maintenance_is_on_screen() {
+        let mut runtime = DeviceRuntime::new(vec!["usage".to_owned()]);
+        runtime.long_key_press();
+        let state = runtime.state(-60, Some("release".to_owned()), None, Ok(()));
+        assert_eq!(state.page_id, "system");
+        assert_eq!(state.command_status, Some(CommandStatus::Confirmed));
+        assert!(state.error_message.is_none());
+    }
+
+    /// A failed command is reported with its reason so the console can surface it.
+    #[test]
+    fn reports_a_failed_command_with_its_reason() {
+        let runtime = DeviceRuntime::new(vec!["usage".to_owned()]);
+        let state = runtime.state(-60, None, Some("cmd-1".to_owned()), Err("page_not_enabled"));
+        assert_eq!(state.command_id.as_deref(), Some("cmd-1"));
+        assert_eq!(state.command_status, Some(CommandStatus::Failed));
+        assert_eq!(state.error_message.as_deref(), Some("page_not_enabled"));
+    }
 }

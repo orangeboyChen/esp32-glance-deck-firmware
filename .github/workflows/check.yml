@@ -23,7 +23,24 @@ jobs:
           targets: x86_64-unknown-linux-gnu
       - run: cargo fmt --check
       - run: cargo metadata --no-deps --format-version 1
+      # Host-only unit tests cover the protocol, cache, validation, and input-handling logic. The
+      # `--lib` filter matters: it excludes src/main.rs and the `esp` modules, which need hardware
+      # and are compiled by the device-image job instead.
       - run: cargo test --lib --no-default-features --target x86_64-unknown-linux-gnu
+
+      # Coverage gate. Measured on the same host build as the tests above, so the number reflects
+      # what CI actually exercises. Device-only modules are not counted because they cannot run
+      # here; --fail-under-lines aborts the job when the measured line coverage drops below 90.
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Enforce 90% line coverage
+        run: |
+          cargo llvm-cov \
+            --lib \
+            --no-default-features \
+            --target x86_64-unknown-linux-gnu \
+            --summary-only \
+            --fail-under-lines 90
 
   # Builds the actual device image. Without this job nothing compiles `src/main.rs` or any of the
   # `esp` feature code, so a device-only regression (or a missing OTA signing key) passes CI and
