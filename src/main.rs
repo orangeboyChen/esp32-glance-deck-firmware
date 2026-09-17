@@ -245,7 +245,7 @@ fn run() -> Result<()> {
                     Err(error) => warn!("rejected OTA check state: {error}"),
                 }
             } else if message.topic == mqtt.topics().release() {
-                match serde_json::from_slice::<DisplayRelease>(&message.payload) {
+                match DisplayRelease::from_payload(&message.payload) {
                     Ok(release) => {
                         let active_page_id = release.active_page_id.clone();
                         match (|| -> Result<()> {
