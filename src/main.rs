@@ -2,7 +2,10 @@ use anyhow::{Context, Result};
 use esp_idf_svc::log::EspLogger;
 use log::{info, warn};
 use std::{
-    sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
+    sync::{
+        mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
+        OnceLock,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -36,13 +39,17 @@ use glance_deck_firmware::{
     runtime::MaintenanceSequence,
 };
 
+static BOOT_INSTANT: OnceLock<Instant> = OnceLock::new();
+
 /// Milliseconds since boot. The maintenance sequence compares against this rather than an
 /// `Instant` deadline so the shared, unit-testable counter in `runtime` stays free of std types.
 fn elapsed_ms() -> u64 {
-    BOOT_INSTANT.elapsed().as_millis() as u64
+    BOOT_INSTANT
+        .get()
+        // `run()` is the only caller and `main` sets the instant before it, so this is unreachable
+        // in practice; falling back to zero just means the first sequence starts fresh.
+        .map_or(0, |started| started.elapsed().as_millis() as u64)
 }
-
-static BOOT_INSTANT: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
 
 fn main() {
     let _ = BOOT_INSTANT.set(Instant::now());
