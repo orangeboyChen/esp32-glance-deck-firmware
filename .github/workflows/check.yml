@@ -37,9 +37,10 @@ jobs:
       # Same toolchain build as .devcontainer/Dockerfile, which pins the version espup installs.
       ESPUP_TOOLCHAIN_VERSION: 1.85.0.0
       RUSTUP_TOOLCHAIN: esp
-      # GitHub's container runs as root while $HOME points at /github/home, and rustup aborts on that
-      # mismatch ("$HOME differs from euid-obtained home directory"). Pinning both to one directory
-      # makes the install independent of $HOME.
+      # GitHub's container runs as root while $HOME points at /github/home. rustup-init refuses to
+      # run when $HOME disagrees with the euid home directory, so override it for the whole job and
+      # pin cargo/rustup under the same root.
+      HOME: /root
       CARGO_HOME: /root/.cargo
       RUSTUP_HOME: /root/.rustup
       # A throwaway key generated for CI. It only proves the OTA verification path compiles and is
@@ -53,7 +54,12 @@ jobs:
 
       # The Xtensa target is not part of upstream stable Rust, so it comes from espup rather than
       # rustup. ldproxy is the linker declared in .cargo/config.toml.
+      # GitHub's container runs as root while $HOME points at /github/home, and rustup-init refuses
+      # to run when $HOME disagrees with the euid home directory. rustup reads $HOME directly, so
+      # setting only CARGO_HOME/RUSTUP_HOME is not enough — HOME has to be overridden in the step.
       - name: Install the Xtensa toolchain
+        env:
+          HOME: /root
         run: |
           echo "${CARGO_HOME}/bin" >> "${GITHUB_PATH}"
           case "$(uname -m)" in
