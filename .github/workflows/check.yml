@@ -36,7 +36,6 @@ jobs:
     env:
       # Same toolchain build as .devcontainer/Dockerfile, which pins the version espup installs.
       ESPUP_TOOLCHAIN_VERSION: 1.85.0.0
-      RUSTUP_TOOLCHAIN: esp
       # GitHub's container runs as root while $HOME points at /github/home. rustup-init refuses to
       # run when $HOME disagrees with the euid home directory, so override it for the whole job and
       # pin cargo/rustup under the same root.
@@ -94,12 +93,17 @@ jobs:
           restore-keys: firmware-${{ runner.os }}-${{ env.ESPUP_TOOLCHAIN_VERSION }}-
 
       # `esp-idf-sys` needs the ESP-IDF environment exported by the container's entrypoint script.
+      # RUSTUP_TOOLCHAIN selects the `esp` toolchain espup installed above.
       - name: Build the ESP32-S3 image
+        env:
+          RUSTUP_TOOLCHAIN: esp
         run: |
           . ${IDF_PATH}/export.sh
           cargo build --release --features esp
 
       - name: Report image size
+        env:
+          RUSTUP_TOOLCHAIN: esp
         run: |
           . ${IDF_PATH}/export.sh
           cargo build --release --features esp --message-format=json \
@@ -121,6 +125,8 @@ jobs:
 
       # Proves build.rs rejects a malformed key instead of silently disabling OTA verification.
       - name: Reject a malformed OTA public key
+        env:
+          RUSTUP_TOOLCHAIN: esp
         run: |
           . ${IDF_PATH}/export.sh
           if FIRMWARE_MANIFEST_PUBLIC_KEY_HEX=not-a-key \
